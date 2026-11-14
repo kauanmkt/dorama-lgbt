@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { ArrowLeft, Clock } from "lucide-react";
+import { ArrowLeft, Clock, Loader2, Lock } from "lucide-react";
 import { PlayerShell } from "@/components/player/PlayerShell";
+import { getMyAccess } from "@/lib/auth";
+import { getPublicSetting } from "@/lib/settings";
 import {
   getAllEpisodeIds,
   getContinueWatching,
@@ -49,17 +51,52 @@ export default async function WatchPage({ params }: PageProps<"/assistir/[id]">)
     );
   }
 
-  // O player aparece na hora; o ponto onde a pessoa parou chega logo em seguida
+  // Confere o acesso no servidor antes de abrir o player
   return (
-    <Suspense fallback={<Player ctx={ctx} />}>
-      <PlayerWithProgress ctx={ctx} />
+    <Suspense fallback={<Loading />}>
+      <PlayerGate ctx={ctx} />
     </Suspense>
   );
 }
 
-async function PlayerWithProgress({ ctx }: { ctx: EpisodeContext }) {
+async function PlayerGate({ ctx }: { ctx: EpisodeContext }) {
+  const access = await getMyAccess();
+  if (!access.hasAccess) {
+    const purchaseUrl = await getPublicSetting<string>("purchase_url");
+    return (
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-4 px-6 text-center">
+        <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-warning/15 text-warning">
+          <Lock className="size-6" />
+        </span>
+        <h1 className="text-2xl font-extrabold">
+          {access.status === "suspensa" ? "Acesso suspenso" : "Sua assinatura não está ativa"}
+        </h1>
+        <p className="max-w-sm text-fg-muted">
+          {access.status === "suspensa"
+            ? "Fale com o suporte para reativar sua conta."
+            : "Renove sua assinatura para continuar assistindo."}
+        </p>
+        {purchaseUrl && access.status !== "suspensa" && (
+          <a href={purchaseUrl} className="rounded-full bg-brand-600 px-6 py-3 font-bold hover:bg-brand-500">
+            Renovar agora
+          </a>
+        )}
+        <Link href="/perfil" className="text-sm font-semibold text-fg-muted hover:text-fg">
+          Ver meu plano
+        </Link>
+      </div>
+    );
+  }
   const progress = (await getContinueWatching(50)).find((c) => c.episode.id === ctx.episode.id);
   return <Player ctx={ctx} startPercent={progress?.percent} />;
+}
+
+function Loading() {
+  return (
+    <div className="fixed inset-0 flex items-center justify-center bg-black">
+      <Loader2 className="size-8 animate-spin text-brand-400" />
+    </div>
+  );
 }
 
 function Player({ ctx, startPercent }: { ctx: EpisodeContext; startPercent?: number }) {

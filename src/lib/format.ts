@@ -11,11 +11,15 @@ import type { AccessStatus, AdminUser } from "@/types/admin";
 export const NOW = new Date("2026-11-14T12:00:00-03:00");
 
 
-export function accessStatus(u: Pick<AdminUser, "suspended" | "planId" | "lifetime" | "expiresAt">): AccessStatus {
+export function accessStatus(
+  u: Pick<AdminUser, "suspended" | "planId" | "lifetime" | "expiresAt" | "cancelled">,
+  now: Date = NOW,
+): AccessStatus {
   if (u.suspended) return "suspenso";
   if (!u.planId) return "sem_plano";
+  if (u.cancelled) return "expirado";
   if (u.lifetime) return "ativo";
-  if (u.expiresAt && new Date(u.expiresAt).getTime() < NOW.getTime()) return "expirado";
+  if (u.expiresAt && new Date(u.expiresAt).getTime() < now.getTime()) return "expirado";
   return "ativo";
 }
 
@@ -42,9 +46,9 @@ export function formatDate(iso?: string) {
   return new Date(iso).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
 }
 
-export function formatRelative(iso?: string) {
+export function formatRelative(iso?: string, now: Date = NOW) {
   if (!iso) return "Nunca";
-  const diff = Math.round((NOW.getTime() - new Date(iso).getTime()) / 86_400_000);
+  const diff = Math.round((now.getTime() - new Date(iso).getTime()) / 86_400_000);
   if (diff <= 0) return "Hoje";
   if (diff === 1) return "Ontem";
   if (diff < 30) return `Há ${diff} dias`;
@@ -65,4 +69,11 @@ export function slugify(text: string) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+/** "Impressão digital" curta de um texto — usada para saber se dados mudaram. */
+export function hashString(text: string) {
+  let h = 5381;
+  for (let i = 0; i < text.length; i++) h = ((h << 5) + h + text.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(36);
 }

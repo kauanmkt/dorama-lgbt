@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useMemo, useState, useTransition } from "react";
 import {
   Ban,
   CalendarPlus,
   Infinity as InfinityIcon,
-  KeyRound,
+  Loader2,
   Minus,
   MonitorPlay,
   Plus,
@@ -29,21 +30,25 @@ import {
   Toggle,
   useToast,
 } from "@/components/admin/ui";
-import { NOW, accessStatus, formatDate, formatRelative, statusLabel, statusTone } from "@/lib/format";
+import { desconectarTelas, liberarAcesso, salvarAcesso } from "@/lib/admin-actions";
+import { accessStatus, formatDate, formatRelative, statusLabel, statusTone } from "@/lib/format";
 import type { AccessStatus, AdminUser, Plan } from "@/types/admin";
 
 type Filter = "todos" | AccessStatus;
 
 const toInputDate = (iso?: string) => (iso ? iso.slice(0, 10) : "");
 const fromInputDate = (v: string) => (v ? new Date(`${v}T23:59:59-03:00`).toISOString() : undefined);
-const addDays = (iso: string | undefined, days: number) => {
-  const base = iso && new Date(iso) > NOW ? new Date(iso) : NOW;
+const addDays = (iso: string | undefined, days: number, now: Date) => {
+  const base = iso && new Date(iso) > now ? new Date(iso) : now;
   return new Date(base.getTime() + days * 86_400_000).toISOString();
 };
 
 /** USUÁRIOS — busca, filtros e gestão de acesso de cada cliente. */
-export function UsersManager({ initial, plans }: { initial: AdminUser[]; plans: Plan[] }) {
+export function UsersManager({ initial, plans, now: nowIso }: { initial: AdminUser[]; plans: Plan[]; now: string }) {
   const toast = useToast();
+  const router = useRouter();
+  const now = useMemo(() => new Date(nowIso), [nowIso]);
+  const [saving, startSaving] = useTransition();
   const [users, setUsers] = useState(initial);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("todos");
@@ -54,23 +59,42 @@ export function UsersManager({ initial, plans }: { initial: AdminUser[]; plans: 
 
   const counts = useMemo(() => {
     const c: Record<Filter, number> = { todos: users.length, ativo: 0, expirado: 0, suspenso: 0, sem_plano: 0 };
-    users.forEach((u) => c[accessStatus(u)]++);
+    users.forEach((u) => c[accessStatus(u, now)]++);
     return c;
-  }, [users]);
+  }, [users, now]);
 
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
     return users.filter(
       (u) =>
-        (filter === "todos" || accessStatus(u) === filter) &&
+        (filter === "todos" || accessStatus(u, now) === filter) &&
         (!q || u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)),
     );
-  }, [users, query, filter]);
+  }, [users, query, filter, now]);
 
-  const update = (u: AdminUser, message: string) => {
-    setUsers((l) => l.map((x) => (x.id === u.id ? u : x)));
-    setSelected(u);
-    toast(message);
+  /** Salva no servidor; só atualiza a tela se der certo. */
+  const update = (u: AdminUser, message: string, kind: "acesso" | "telas" = "acesso") => {
+    startSaving(async () => {
+      const res =
+        kind === "telas"
+          ? await desconectarTelas(u.id)
+          : await salvarAcesso({
+              userId: u.id,
+              planId: u.planId,
+              lifetime: u.lifetime,
+              expiresAt: u.expiresAt,
+              extraScreens: u.extraScreens,
+              suspended: u.suspended,
+            });
+      if (!res.ok) {
+        toast(res.error, "error");
+        return;
+      }
+      setUsers((l) => l.map((x) => (x.id === u.id ? u : x)));
+      setSelected(u);
+      toast(message);
+      router.refresh();
+    });
   };
 
   return (
@@ -119,7 +143,7 @@ export function UsersManager({ initial, plans }: { initial: AdminUser[]; plans: 
             </div>
             <ul className="divide-y divide-white/5">
               {shown.map((u) => {
-                const st = accessStatus(u);
+                const st = accessStatus(u, now);
                 return (
                   <li key={u.id}>
                     <button
@@ -153,9 +177,9 @@ export function UsersManager({ initial, plans }: { initial: AdminUser[]; plans: 
                           formatDate(u.expiresAt)
                         )}
                       </span>
-                      <span className="hidden text-sm text-fg-muted md:block">{formatRelative(u.lastSeenAt)}</span>
+                      <span className="hidden text-sm text-fg-muted md:block">{formatRelative(u.lastSeenAt, now)}</span>
                       <span>
-                        <Badge tone={statusTone[st]}>{statusLabel[st]}</Badge>
+                        {u.isAdmin ? <Badge tone="brand">Admin</Badge> : <Badge tone={statusTone[st]}>{statusLabel[st]}</Badge>}
                       </span>
                     </button>
                   </li>
@@ -171,6 +195,8 @@ export function UsersManager({ initial, plans }: { initial: AdminUser[]; plans: 
           key={selected.id}
           user={selected}
           plans={plans}
+          now={now}
+          saving={saving}
           onClose={() => setSelected(null)}
           onUpdate={update}
         />
@@ -179,14 +205,18 @@ export function UsersManager({ initial, plans }: { initial: AdminUser[]; plans: 
       {granting && (
         <GrantModal
           plans={plans}
+          now={now}
           onClose={() => setGranting(false)}
-          onGrant={(u) => {
+          onGrant={async (u) => {
+            const res = await liberarAcesso({ email: u.email, name: u.name, planId: u.planId ?? "" });
+            if (!res.ok) return res.error;
             setUsers((l) => {
               const existing = l.find((x) => x.email === u.email);
               return existing ? l.map((x) => (x.email === u.email ? { ...x, ...u, id: x.id, name: x.name } : x)) : [u, ...l];
             });
-            toast(`Acesso liberado para ${u.email}`);
+            toast(res.message ?? `Acesso liberado para ${u.email}`);
             setGranting(false);
+            router.refresh();
           }}
         />
       )}
@@ -197,16 +227,20 @@ export function UsersManager({ initial, plans }: { initial: AdminUser[]; plans: 
 function UserDrawer({
   user,
   plans,
+  now,
+  saving,
   onClose,
   onUpdate,
 }: {
   user: AdminUser;
   plans: Plan[];
+  now: Date;
+  saving: boolean;
   onClose: () => void;
-  onUpdate: (u: AdminUser, message: string) => void;
+  onUpdate: (u: AdminUser, message: string, kind?: "acesso" | "telas") => void;
 }) {
   const [draft, setDraft] = useState(user);
-  const st = accessStatus(draft);
+  const st = accessStatus(draft, now);
   const plan = plans.find((p) => p.id === draft.planId);
   const totalScreens = (plan?.screens ?? 0) + draft.extraScreens;
   const set = (patch: Partial<AdminUser>) => setDraft((d) => ({ ...d, ...patch }));
@@ -218,8 +252,8 @@ function UserDrawer({
       title="Detalhes do usuário"
       footer={
         <>
-          <Button className="flex-1" onClick={() => onUpdate(draft, "Alterações salvas")}>
-            Salvar alterações
+          <Button className="flex-1" disabled={saving} onClick={() => onUpdate(draft, "Alterações salvas")}>
+            {saving && <Loader2 className="animate-spin" />} Salvar alterações
           </Button>
           <Button variant="outline" onClick={onClose}>
             Fechar
@@ -247,7 +281,7 @@ function UserDrawer({
         </div>
         <div>
           <dt className="text-xs text-fg-subtle">Último acesso</dt>
-          <dd className="font-semibold">{formatRelative(draft.lastSeenAt)}</dd>
+          <dd className="font-semibold">{formatRelative(draft.lastSeenAt, now)}</dd>
         </div>
         <div className="col-span-2">
           <dt className="text-xs text-fg-subtle">Telas em uso agora</dt>
@@ -267,7 +301,7 @@ function UserDrawer({
             set({
               planId: p?.id,
               lifetime: p?.type === "vitalicio",
-              expiresAt: p?.type === "recorrente" ? draft.expiresAt ?? addDays(undefined, p.durationDays ?? 30) : undefined,
+              expiresAt: p?.type === "recorrente" ? draft.expiresAt ?? addDays(undefined, p.durationDays ?? 30, now) : undefined,
             });
           }}
         >
@@ -284,7 +318,7 @@ function UserDrawer({
           <>
             <Toggle
               checked={draft.lifetime}
-              onChange={(v) => set({ lifetime: v, expiresAt: v ? undefined : addDays(undefined, 30) })}
+              onChange={(v) => set({ lifetime: v, expiresAt: v ? undefined : addDays(undefined, 30, now) })}
               label="Acesso vitalício"
               description="Nunca expira, independentemente do plano"
             />
@@ -301,7 +335,7 @@ function UserDrawer({
                     <button
                       key={d}
                       type="button"
-                      onClick={() => set({ expiresAt: addDays(draft.expiresAt, d) })}
+                      onClick={() => set({ expiresAt: addDays(draft.expiresAt, d, now) })}
                       className="flex h-8 items-center gap-1 rounded-lg bg-white/[0.06] px-2.5 text-xs font-semibold text-fg-muted ring-1 ring-white/10 hover:text-fg"
                     >
                       <CalendarPlus className="size-3.5" /> +{d} dias
@@ -335,17 +369,14 @@ function UserDrawer({
         ) : (
           <Button
             variant="danger"
-            disabled={draft.isAdmin}
+            disabled={draft.isAdmin || saving}
             onClick={() => onUpdate({ ...draft, suspended: true }, `${draft.name} suspenso`)}
           >
             <Ban /> Suspender acesso
           </Button>
         )}
-        <Button variant="ghost" onClick={() => onUpdate(draft, `Link de nova senha enviado para ${draft.email}`)}>
-          <KeyRound /> Enviar link de nova senha
-        </Button>
         {draft.activeScreens > 0 && (
-          <Button variant="ghost" onClick={() => onUpdate({ ...draft, activeScreens: 0 }, "Todas as telas foram desconectadas")}>
+          <Button variant="ghost" onClick={() => onUpdate({ ...draft, activeScreens: 0 }, "Todas as telas foram desconectadas", "telas")}>
             <MonitorPlay /> Desconectar todas as telas
           </Button>
         )}
@@ -356,13 +387,17 @@ function UserDrawer({
 
 function GrantModal({
   plans,
+  now,
   onClose,
   onGrant,
 }: {
   plans: Plan[];
+  now: Date;
   onClose: () => void;
-  onGrant: (u: AdminUser) => void;
+  /** Retorna uma mensagem de erro, se houver */
+  onGrant: (u: AdminUser) => Promise<string | undefined | void>;
 }) {
+  const [busy, setBusy] = useState(false);
   const active = plans.filter((p) => p.active);
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
@@ -370,20 +405,24 @@ function GrantModal({
   const [error, setError] = useState("");
   const plan = plans.find((p) => p.id === planId);
 
-  const submit = () => {
+  const submit = async () => {
     if (!/^\S+@\S+\.\S+$/.test(email)) return setError("Informe um e-mail válido.");
-    onGrant({
+    if (!planId) return setError("Cadastre um plano ativo primeiro (menu Planos).");
+    setBusy(true);
+    const err = await onGrant({
       id: `u-${Date.now()}`,
       name: name.trim() || email.split("@")[0],
       email: email.trim().toLowerCase(),
-      createdAt: NOW.toISOString(),
+      createdAt: now.toISOString(),
       planId,
       lifetime: plan?.type === "vitalicio",
-      expiresAt: plan?.type === "recorrente" ? addDays(undefined, plan.durationDays ?? 30) : undefined,
+      expiresAt: plan?.type === "recorrente" ? addDays(undefined, plan.durationDays ?? 30, now) : undefined,
       suspended: false,
       extraScreens: 0,
       activeScreens: 0,
     });
+    setBusy(false);
+    if (err) setError(err);
   };
 
   return (
@@ -398,8 +437,8 @@ function GrantModal({
           <Button variant="outline" size="sm" onClick={onClose}>
             Cancelar
           </Button>
-          <Button size="sm" onClick={submit}>
-            Liberar acesso
+          <Button size="sm" onClick={submit} disabled={busy}>
+            {busy && <Loader2 className="animate-spin" />} Liberar acesso
           </Button>
         </>
       }
@@ -415,7 +454,7 @@ function GrantModal({
           }}
           placeholder="cliente@email.com"
           error={error}
-          hint="Se a pessoa ainda não tiver conta, ela recebe um convite para criar a senha."
+          hint="Se ainda não tiver conta, ela é criada na hora. A pessoa entra só com este e-mail."
           autoFocus
         />
         <TextInput label="Nome (opcional)" value={name} onChange={(e) => setName(e.target.value)} />

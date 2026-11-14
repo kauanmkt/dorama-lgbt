@@ -6,6 +6,7 @@ import { useState } from "react";
 import { LogOut, Menu, X } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 import { adminNav } from "@/config/navigation";
+import { sair } from "@/lib/session-actions";
 import { cn } from "@/lib/utils";
 
 function NavList({ onNavigate }: { onNavigate?: () => void }) {
@@ -101,12 +102,15 @@ export function AdminSidebar() {
         <nav className="mt-4 flex-1" aria-label="Painel">
           <NavList />
         </nav>
-        <button
-          type="button"
-          className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-fg-muted hover:bg-white/5 hover:text-fg"
-        >
-          <LogOut className="size-[18px]" /> Sair
-        </button>
+        <form action={sair}>
+          <input type="hidden" name="para" value="admin" />
+          <button
+            type="submit"
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-fg-muted hover:bg-white/5 hover:text-fg"
+          >
+            <LogOut className="size-[18px]" /> Sair
+          </button>
+        </form>
       </aside>
     </>
   );

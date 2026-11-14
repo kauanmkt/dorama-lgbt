@@ -13,7 +13,8 @@ Arquivos em `supabase/`:
 | `migrations/0001_estrutura_inicial.sql` | Cria tabelas, relações, regras de segurança (RLS) e funções | **Uma vez**, num projeto novo |
 | `seed-demo.sql` | Catálogo, categorias e planos de demonstração (fictícios) | Opcional, para testar |
 | `remover-demo.sql` | Apaga os doramas e planos de demonstração | Antes de lançar |
-| `tornar-admin.sql` | Transforma sua conta em administradora | Depois de criar sua conta (Etapa 5) |
+| `migrations/0002_login_por_email.sql` | Ajustes para o login só com e-mail | **Uma vez**, depois da 0001 |
+| `tornar-admin.sql` | Transforma uma conta em administradora | Depois de criar sua conta de admin |
 
 **Como aplicar:** Supabase → **SQL Editor** → **New query** → colar o conteúdo → **Run**.
 
@@ -37,11 +38,46 @@ Todas as tabelas têm regras no próprio banco — o app nunca decide sozinho:
 Teste automático das regras (47 verificações, roda num Postgres local):
 `cd scripts/db-tests && npm i @electric-sql/pglite && node test-banco.mjs ../..`
 
+Teste de ponta a ponta do login (20 verificações) com um Supabase simulado:
+`node fake-supabase2.mjs ../..` + build com `NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321`
+e `SUPABASE_SECRET_KEY=test-secret` + `python3 teste-login-e2e.py` (requer Playwright).
+
 ### Como o catálogo chega às telas
 
 `src/lib/catalog.ts` lê todo o catálogo publicado numa única consulta e guarda em cache
 (renova a cada 5 minutos, ou na hora quando o painel publicar algo — Etapa 6).
 Sem Supabase configurado, o app usa os dados fictícios.
+
+## Login e permissões
+
+**Cliente — só com e-mail.** A pessoa digita o e-mail da compra; o servidor confere se
+existe conta com assinatura ativa e abre a sessão. Sem assinatura ativa, não entra
+(e vê o link de compra, se configurado em `settings.purchase_url`).
+A mensagem de erro é a mesma para "não existe", "sem plano" e "admin", para não revelar
+quem é cliente.
+
+**Administrador — e-mail e senha**, em `/admin/entrar`. Contas de admin nunca entram
+só com e-mail. Cada tela e cada ação do painel conferem no servidor se a pessoa é admin
+(tabela `admins`), e o banco (RLS) confere de novo.
+
+**Porteiro (`src/proxy.ts`).** Sem login, qualquer página leva ao login (do cliente ou
+do painel). O player ainda confere se a assinatura está ativa antes de abrir.
+
+**Liberar acesso.** `src/lib/access.ts → grantAccess()` cria a conta (se não existir) e
+ativa/renova o plano — renovação antecipada soma os dias restantes. É usada pelo botão
+"Liberar acesso" do painel e será usada pelo webhook da plataforma de pagamento.
+`revokeAccess()` encerra o acesso (reembolso/chargeback).
+
+### Configuração única no Supabase
+
+1. Rodar `migrations/0002_login_por_email.sql` no SQL Editor.
+2. **Authentication → Users → Add user → Create new user**: seu e-mail de admin + senha
+   forte, marcando **Auto Confirm User**.
+3. Rodar `tornar-admin.sql` (trocando o e-mail pelo seu).
+4. **Authentication → Sign In / Providers → Email**: desligar **Allow new users to sign up**
+   (contas de clientes só são criadas pelo sistema: painel ou webhook).
+5. Variável `SUPABASE_SECRET_KEY` (Project Settings → API Keys → Secret key) no
+   `.env.local` e na Vercel — nunca no código.
 
 ## Como rodar no computador
 
@@ -74,9 +110,9 @@ npm run dev      # abre em http://localhost:3000
 - `/categorias` e `/categoria/[slug]` — Navegação por categoria
 - `/minha-lista` — Doramas salvos
 - `/perfil` — Conta, plano e telas
-- `/entrar`, `/cadastro`, `/recuperar-senha` — Telas de acesso
+- `/entrar` — Login do cliente (só o e-mail da compra)
 
-**Painel administrativo**
+**Painel administrativo** (login próprio em `/admin/entrar`, com senha)
 - `/admin` — Dashboard: números, alertas, conteúdo e usuários recentes
 - `/admin/doramas` — Lista com busca, filtros, publicar/despublicar, destaque e exclusão
 - `/admin/doramas/novo` e `/admin/doramas/[slug]` — Editor: informações, categorias,
@@ -130,7 +166,10 @@ src/
 ├── fonts/                  → Fontes Sora e Manrope (locais)
 ├── lib/
 │   ├── catalog.ts          → Acesso ao catálogo (Supabase com cache, ou dados fictícios)
-│   ├── supabase/           → Conexões com o Supabase (visitante, usuário logado, navegador)
+│   ├── supabase/           → Conexões com o Supabase (visitante, usuário logado, navegador, servidor)
+│   ├── auth.ts             → Quem está logado? É admin? Qual o plano?
+│   ├── access.ts           → Liberar/encerrar acesso e login só com e-mail
+│   ├── admin-actions.ts    → Ações do painel (sempre verificam admin)
 │   ├── admin.ts            → Acesso aos dados do painel (idem)
 │   ├── format.ts           → Datas, dinheiro, tamanhos e regras de status
 │   └── mock/               → Dados fictícios temporários
@@ -151,7 +190,7 @@ scripts/                    → Ferramentas (gerador de ícones)
 - [x] 2. Frontend completo da área do cliente
 - [x] 3. Frontend do painel administrativo
 - [x] 4. Integração com Supabase
-- [ ] 5. Autenticação e permissões
+- [x] 5. Autenticação e permissões
 - [ ] 6. Cadastro de doramas e episódios
 - [ ] 7. Integração com Cloudflare R2
 - [ ] 8. Player e progresso de reprodução

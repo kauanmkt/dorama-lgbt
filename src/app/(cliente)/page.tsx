@@ -37,6 +37,7 @@ export default async function HomePage() {
   ).filter((r) => r.doramas.length >= 3); // fileiras com poucos títulos ficam de fora
 
   const heroItems: HeroItem[] = featured.map((d) => ({
+    id: d.id,
     slug: d.slug,
     title: d.title,
     tagline: d.tagline,

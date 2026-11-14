@@ -31,6 +31,7 @@ const asOwner = () => db.exec(`reset role; select set_config('request.jwt.claim.
 
 console.log("\n▶ Aplicando migração");
 await db.exec(readFileSync(`${root}/supabase/migrations/0001_estrutura_inicial.sql`, "utf8"));
+await db.exec(readFileSync(`${root}/supabase/migrations/0002_login_por_email.sql`, "utf8"));
 ok(true, "migração aplicada sem erros");
 
 console.log("\n▶ Aplicando dados de demonstração (2x, para testar repetição)");

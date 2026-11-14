@@ -10,6 +10,7 @@ import { Artwork } from "./Artwork";
 import { MyListButton } from "./MyListButton";
 
 export type HeroItem = {
+  id: string;
   slug: string;
   title: string;
   tagline: string;
@@ -108,7 +109,8 @@ export function HeroCarousel({ items }: { items: HeroItem[] }) {
               <Play className="fill-current" /> Assistir
             </ButtonLink>
             <MyListButton
-              slug={item.slug}
+              key={item.id}
+              doramaId={item.id}
               initial={item.inMyList}
               size="lg"
               className="flex-1 sm:flex-none"

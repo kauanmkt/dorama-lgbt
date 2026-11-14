@@ -220,7 +220,7 @@ function WatchActions({
           Em breve
         </span>
       )}
-      <MyListButton key={String(inList)} slug={dorama.slug} initial={inList} size="lg" className="flex-1 sm:flex-none" />
+      <MyListButton key={String(inList)} doramaId={dorama.id} initial={inList} size="lg" className="flex-1 sm:flex-none" />
       <button
         type="button"
         aria-label="Compartilhar"

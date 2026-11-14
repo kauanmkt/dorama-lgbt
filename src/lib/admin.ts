@@ -6,7 +6,10 @@
 import { mockCategories, mockDoramas } from "@/lib/mock/catalog";
 import { NOW } from "@/lib/format";
 import { mockPlans, mockUsers, mockVideos } from "@/lib/mock/admin";
+import { requireAdmin } from "@/lib/auth";
 import { accessStatus } from "@/lib/format";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { createSessionClient } from "@/lib/supabase/server";
 import type { AdminDorama, AdminUser, Plan, VideoAsset } from "@/types/admin";
 import type { Category } from "@/types/catalog";
 
@@ -70,12 +73,82 @@ export async function getAdminCategories(): Promise<(Category & { count: number 
   }));
 }
 
+// ===== Planos e usuários: já leem do banco quando o Supabase está configurado =====
+
+type PlanRow = {
+  id: string;
+  name: string;
+  description: string;
+  price_cents: number;
+  type: Plan["type"];
+  duration_days: number | null;
+  screens: number;
+  active: boolean;
+  highlight: boolean;
+};
+
 export async function getPlans(): Promise<Plan[]> {
-  return mockPlans;
+  if (!isSupabaseConfigured) return mockPlans;
+  await requireAdmin();
+  const supabase = await createSessionClient();
+  const { data, error } = await supabase
+    .from("plans")
+    .select("id, name, description, price_cents, type, duration_days, screens, active, highlight")
+    .order("position")
+    .order("created_at");
+  if (error) throw new Error(`Erro ao ler planos: ${error.message}`);
+  return (data as PlanRow[]).map((p) => ({
+    id: p.id,
+    name: p.name,
+    description: p.description,
+    priceCents: p.price_cents,
+    type: p.type,
+    durationDays: p.duration_days ?? undefined,
+    screens: p.screens,
+    active: p.active,
+    highlight: p.highlight,
+  }));
 }
 
+/** Uma tela conta como "em uso" se deu sinal de vida nos últimos 2 minutos. */
+const SCREEN_TIMEOUT_MS = 2 * 60 * 1000;
+
 export async function getUsers(): Promise<AdminUser[]> {
-  return mockUsers;
+  if (!isSupabaseConfigured) return mockUsers;
+  await requireAdmin();
+  const supabase = await createSessionClient();
+  const since = new Date(Date.now() - SCREEN_TIMEOUT_MS).toISOString();
+  const [profiles, subs, admins, sessions] = await Promise.all([
+    supabase.from("profiles").select("id, name, email, created_at, last_seen_at").order("created_at", { ascending: false }),
+    supabase.from("subscriptions").select("user_id, plan_id, status, lifetime, expires_at, extra_screens"),
+    supabase.from("admins").select("user_id"),
+    supabase.from("playback_sessions").select("user_id").gte("last_heartbeat_at", since),
+  ]);
+  if (profiles.error) throw new Error(`Erro ao ler usuários: ${profiles.error.message}`);
+
+  const subByUser = new Map((subs.data ?? []).map((s) => [s.user_id, s]));
+  const adminIds = new Set((admins.data ?? []).map((a) => a.user_id));
+  const screens = new Map<string, number>();
+  (sessions.data ?? []).forEach((s) => screens.set(s.user_id, (screens.get(s.user_id) ?? 0) + 1));
+
+  return profiles.data.map((p): AdminUser => {
+    const sub = subByUser.get(p.id);
+    return {
+      id: p.id,
+      name: p.name || p.email.split("@")[0],
+      email: p.email,
+      createdAt: p.created_at,
+      lastSeenAt: p.last_seen_at ?? undefined,
+      planId: sub?.plan_id ?? undefined,
+      expiresAt: sub?.expires_at ?? undefined,
+      lifetime: Boolean(sub?.lifetime),
+      suspended: sub?.status === "suspensa",
+      cancelled: sub?.status === "cancelada",
+      extraScreens: sub?.extra_screens ?? 0,
+      activeScreens: screens.get(p.id) ?? 0,
+      isAdmin: adminIds.has(p.id),
+    };
+  });
 }
 
 export async function getVideos(): Promise<VideoAsset[]> {

@@ -1,10 +1,12 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Infinity as InfinityIcon, Minus, MonitorPlay, Pencil, Plus, RefreshCw, Sparkles, Users } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { AdminHeader, FormField, Modal, SelectInput, TextArea, TextInput, Toggle, useToast } from "@/components/admin/ui";
+import { alternarPlano, salvarPlano } from "@/lib/admin-actions";
 import { formatBRL } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { Plan, PlanType } from "@/types/admin";
@@ -28,6 +30,7 @@ const periodLabel = (p: Plan) =>
 /** PLANOS — criar e editar os planos de acesso. */
 export function PlansManager({ initial, subscribers }: { initial: Plan[]; subscribers: Record<string, number> }) {
   const toast = useToast();
+  const router = useRouter();
   const [plans, setPlans] = useState(initial);
   const [editing, setEditing] = useState<Plan | "new" | null>(null);
 
@@ -94,9 +97,12 @@ export function PlansManager({ initial, subscribers }: { initial: Plan[]; subscr
               </Button>
               <button
                 type="button"
-                onClick={() => {
+                onClick={async () => {
+                  const res = await alternarPlano(p.id, !p.active);
+                  if (!res.ok) return toast(res.error, "error");
                   setPlans((l) => l.map((x) => (x.id === p.id ? { ...x, active: !x.active } : x)));
                   toast(p.active ? `Plano “${p.name}” desativado` : `Plano “${p.name}” ativado`);
+                  router.refresh();
                 }}
                 className="ml-auto text-xs font-semibold text-fg-subtle hover:text-fg"
               >
@@ -115,9 +121,14 @@ export function PlansManager({ initial, subscribers }: { initial: Plan[]; subscr
         <PlanModal
           initial={editing === "new" ? undefined : editing}
           onClose={() => setEditing(null)}
-          onSave={(plan) => {
-            setPlans((l) => (l.some((x) => x.id === plan.id) ? l.map((x) => (x.id === plan.id ? plan : x)) : [...l, plan]));
-            toast(editing === "new" ? `Plano “${plan.name}” criado` : "Plano atualizado");
+          onSave={async (plan) => {
+            const isNew = editing === "new";
+            const res = await salvarPlano({ ...plan, isNew });
+            if (!res.ok) return toast(res.error, "error");
+            const saved = { ...plan, id: res.id ?? plan.id };
+            setPlans((l) => (l.some((x) => x.id === saved.id) ? l.map((x) => (x.id === saved.id ? saved : x)) : [...l, saved]));
+            toast(isNew ? `Plano “${plan.name}” criado` : "Plano atualizado");
+            router.refresh();
             setEditing(null);
           }}
         />
@@ -126,7 +137,7 @@ export function PlansManager({ initial, subscribers }: { initial: Plan[]; subscr
   );
 }
 
-function PlanModal({ initial, onClose, onSave }: { initial?: Plan; onClose: () => void; onSave: (p: Plan) => void }) {
+function PlanModal({ initial, onClose, onSave }: { initial?: Plan; onClose: () => void; onSave: (p: Plan) => void | Promise<void> }) {
   const [name, setName] = useState(initial?.name ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
   const [price, setPrice] = useState(initial ? (initial.priceCents / 100).toFixed(2).replace(".", ",") : "");

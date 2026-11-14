@@ -51,36 +51,3 @@ export function PasswordField({
     </div>
   );
 }
-
-/**
- * Formulário que, por enquanto, só mostra um aviso ao enviar.
- * A autenticação real (Supabase) chega na Etapa 5.
- */
-export function DemoForm({
-  children,
-  className,
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  const [sent, setSent] = useState(false);
-  return (
-    <form
-      className={className}
-      onSubmit={(e) => {
-        e.preventDefault();
-        setSent(true);
-      }}
-    >
-      {children}
-      {sent && (
-        <p
-          role="status"
-          className="mt-4 rounded-xl bg-brand-600/15 px-4 py-3 text-sm text-brand-100 ring-1 ring-brand-500/30"
-        >
-          Tela pronta! A conexão com o sistema de contas será ativada na Etapa 5.
-        </p>
-      )}
-    </form>
-  );
-}

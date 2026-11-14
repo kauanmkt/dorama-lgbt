@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Bell, Search } from "lucide-react";
+import { Bell, Search, User } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 import { clientTopNav } from "@/config/navigation";
 import { cn } from "@/lib/utils";
@@ -75,9 +75,9 @@ export function Header() {
           <Link
             href="/perfil"
             aria-label="Minha conta"
-            className="ml-1 flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-accent-500 text-sm font-bold ring-2 ring-transparent transition hover:ring-brand-300"
+            className="ml-1 flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-accent-500 ring-2 ring-transparent transition hover:ring-brand-300"
           >
-            V
+            <User className="size-5" />
           </Link>
         </div>
       </div>

@@ -40,6 +40,8 @@ export type AdminUser = {
   expiresAt?: string;
   lifetime: boolean;
   suspended: boolean;
+  /** Assinatura encerrada (reembolso, cancelamento) */
+  cancelled?: boolean;
   /** Telas extras além das do plano */
   extraScreens: number;
   activeScreens: number;
