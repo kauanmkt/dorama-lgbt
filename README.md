@@ -1,36 +1,67 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Dorama LGBT
 
-## Getting Started
+Plataforma de streaming de doramas: área do cliente + painel administrativo, instalável como app (PWA).
 
-First, run the development server:
+**Tecnologias:** Next.js 16 · TypeScript · Tailwind CSS 4 · Supabase · Cloudflare R2 · Vercel
+
+## Como rodar no computador
+
+Pré-requisito: [Node.js 20 ou superior](https://nodejs.org).
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install      # instala as dependências (só na primeira vez)
+npm run dev      # abre em http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+| Comando           | O que faz                                             |
+| ----------------- | ----------------------------------------------------- |
+| `npm run dev`     | Modo desenvolvimento (atualiza sozinho ao salvar)     |
+| `npm run build`   | Gera a versão de produção (o mesmo que a Vercel faz)  |
+| `npm run lint`    | Procura erros e más práticas no código                |
+| `npm run icons`   | Recria os ícones do app a partir da logo              |
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Páginas atuais (Etapa 1)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `/` — Início (prévia visual do banner e carrossel)
+- `/identidade` — Guia da identidade visual (página interna)
+- `/admin` — Painel administrativo (estrutura)
 
-## Learn More
+## Organização das pastas
 
-To learn more about Next.js, take a look at the following resources:
+```
+src/
+├── app/                    → Páginas (cada pasta = um endereço do site)
+│   ├── (cliente)/          → Área do cliente (com cabeçalho e menu do celular)
+│   ├── admin/              → Painel administrativo (com menu lateral)
+│   ├── globals.css         → Identidade visual: cores, fontes, animações
+│   ├── layout.tsx          → Base de todas as páginas
+│   └── manifest.ts         → Configuração do PWA (app instalável)
+├── components/
+│   ├── brand/              → Logo
+│   ├── ui/                 → Peças reutilizáveis (botões, etiquetas, capas)
+│   ├── layout/             → Cabeçalho, rodapé, menu inferior
+│   └── admin/              → Componentes do painel
+├── config/                 → Nome do site e itens dos menus
+├── fonts/                  → Fontes Sora e Manrope (locais)
+└── lib/                    → Funções auxiliares
+public/icons/               → Ícones do PWA
+scripts/                    → Ferramentas (gerador de ícones)
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Trocar a logo provisória
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. Edite o desenho em `src/components/brand/Logo.tsx` (ou substitua pelo SVG oficial).
+2. Atualize o mesmo desenho em `scripts/generate-icons.mjs` e rode `npm run icons`.
 
-## Deploy on Vercel
+## Roteiro
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- [x] 1. Estrutura do projeto e identidade visual
+- [ ] 2. Frontend completo da área do cliente
+- [ ] 3. Frontend do painel administrativo
+- [ ] 4. Integração com Supabase
+- [ ] 5. Autenticação e permissões
+- [ ] 6. Cadastro de doramas e episódios
+- [ ] 7. Integração com Cloudflare R2
+- [ ] 8. Player e progresso de reprodução
+- [ ] 9. Usuários, planos e telas simultâneas
+- [ ] 10. PWA, testes e publicação
