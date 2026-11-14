@@ -33,8 +33,21 @@ npm run dev      # abre em http://localhost:3000
 - `/perfil` — Conta, plano e telas
 - `/entrar`, `/cadastro`, `/recuperar-senha` — Telas de acesso
 
-**Painel**
-- `/admin` — Dashboard (estrutura)
+**Painel administrativo**
+- `/admin` — Dashboard: números, alertas, conteúdo e usuários recentes
+- `/admin/doramas` — Lista com busca, filtros, publicar/despublicar, destaque e exclusão
+- `/admin/doramas/novo` e `/admin/doramas/[slug]` — Editor: informações, categorias,
+  capa e banner, temporadas, episódios e envio de vídeo por episódio
+- `/admin/videos` — Envio em lote (vínculo automático pelo nome do arquivo) e biblioteca do R2
+- `/admin/categorias` — Criar, editar, excluir e ordenar (ordem = fileiras da home)
+- `/admin/usuarios` — Busca, filtros por status, gaveta de detalhes (plano, validade,
+  vitalício, telas extras, suspender) e "Liberar acesso" manual
+- `/admin/planos` — Planos com prazo ou vitalícios, preço, duração e telas
+- `/admin/configuracoes` — Dados da plataforma, regras de acesso e ordem dos destaques
+
+> No painel, as alterações ainda ficam só na tela (somem ao recarregar).
+> Elas passam a ser salvas de verdade a partir da Etapa 4.
+> O endereço `novo` é reservado: nenhum dorama pode usar o slug "novo".
 
 **Interna**
 - `/identidade` — Guia da identidade visual
@@ -67,12 +80,15 @@ src/
 │   ├── catalog/            → Capas, carrosséis, destaque, episódios, busca
 │   ├── player/             → Interface do player
 │   ├── auth/               → Campos dos formulários de acesso
+│   ├── admin/              → Telas e kit de componentes do painel
 │   ├── layout/             → Cabeçalho, rodapé, menu inferior
 │   └── admin/              → Componentes do painel
 ├── config/                 → Nome do site e itens dos menus
 ├── fonts/                  → Fontes Sora e Manrope (locais)
 ├── lib/
 │   ├── catalog.ts          → Acesso ao catálogo (único ponto a trocar na Etapa 4)
+│   ├── admin.ts            → Acesso aos dados do painel (idem)
+│   ├── format.ts           → Datas, dinheiro, tamanhos e regras de status
 │   └── mock/               → Dados fictícios temporários
 └── types/                  → Formato dos dados (dorama, temporada, episódio...)
 public/icons/               → Ícones do PWA
@@ -88,7 +104,7 @@ scripts/                    → Ferramentas (gerador de ícones)
 
 - [x] 1. Estrutura do projeto e identidade visual
 - [x] 2. Frontend completo da área do cliente
-- [ ] 3. Frontend do painel administrativo
+- [x] 3. Frontend do painel administrativo
 - [ ] 4. Integração com Supabase
 - [ ] 5. Autenticação e permissões
 - [ ] 6. Cadastro de doramas e episódios

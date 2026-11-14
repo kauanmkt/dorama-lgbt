@@ -1,0 +1,68 @@
+/**
+ * Regras simples e formatação de valores (datas, dinheiro, tamanhos).
+ * Pode ser usado tanto no servidor quanto na tela do navegador.
+ */
+import type { AccessStatus, AdminUser } from "@/types/admin";
+
+/**
+ * "Hoje" do sistema. Fixo durante a fase de dados fictícios para a prévia
+ * ficar estável; na Etapa 4 vira a data real.
+ */
+export const NOW = new Date("2026-11-14T12:00:00-03:00");
+
+
+export function accessStatus(u: Pick<AdminUser, "suspended" | "planId" | "lifetime" | "expiresAt">): AccessStatus {
+  if (u.suspended) return "suspenso";
+  if (!u.planId) return "sem_plano";
+  if (u.lifetime) return "ativo";
+  if (u.expiresAt && new Date(u.expiresAt).getTime() < NOW.getTime()) return "expirado";
+  return "ativo";
+}
+
+export const statusLabel: Record<AccessStatus, string> = {
+  ativo: "Ativo",
+  expirado: "Expirado",
+  suspenso: "Suspenso",
+  sem_plano: "Sem plano",
+};
+
+export const statusTone = {
+  ativo: "success",
+  expirado: "warning",
+  suspenso: "danger",
+  sem_plano: "neutral",
+} as const;
+
+export function formatBRL(cents: number) {
+  return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+export function formatDate(iso?: string) {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
+}
+
+export function formatRelative(iso?: string) {
+  if (!iso) return "Nunca";
+  const diff = Math.round((NOW.getTime() - new Date(iso).getTime()) / 86_400_000);
+  if (diff <= 0) return "Hoje";
+  if (diff === 1) return "Ontem";
+  if (diff < 30) return `Há ${diff} dias`;
+  return formatDate(iso);
+}
+
+export function formatBytes(bytes: number) {
+  if (bytes >= 1024 ** 4) return `${(bytes / 1024 ** 4).toFixed(2)} TB`;
+  if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
+  if (bytes >= 1024 ** 2) return `${Math.round(bytes / 1024 ** 2)} MB`;
+  return `${Math.round(bytes / 1024)} KB`;
+}
+
+export function slugify(text: string) {
+  return text
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}

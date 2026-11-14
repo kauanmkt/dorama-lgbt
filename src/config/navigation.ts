@@ -42,10 +42,10 @@ export const clientBottomNav: NavItem[] = [
 /** Menu lateral do painel administrativo. */
 export const adminNav: NavItem[] = [
   { label: "Dashboard", href: "/admin", icon: Gauge, ready: true },
-  { label: "Doramas", href: "/admin/doramas", icon: Clapperboard },
-  { label: "Categorias", href: "/admin/categorias", icon: FolderTree },
-  { label: "Vídeos", href: "/admin/videos", icon: UploadCloud },
-  { label: "Usuários", href: "/admin/usuarios", icon: Users },
-  { label: "Planos", href: "/admin/planos", icon: WalletCards },
-  { label: "Configurações", href: "/admin/configuracoes", icon: Settings },
+  { label: "Doramas", href: "/admin/doramas", icon: Clapperboard, ready: true },
+  { label: "Categorias", href: "/admin/categorias", icon: FolderTree, ready: true },
+  { label: "Vídeos", href: "/admin/videos", icon: UploadCloud, ready: true },
+  { label: "Usuários", href: "/admin/usuarios", icon: Users, ready: true },
+  { label: "Planos", href: "/admin/planos", icon: WalletCards, ready: true },
+  { label: "Configurações", href: "/admin/configuracoes", icon: Settings, ready: true },
 ];
