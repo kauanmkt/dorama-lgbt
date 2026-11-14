@@ -26,17 +26,17 @@ export type NavItem = {
 /** Menu superior (computador e tablet). */
 export const clientTopNav: NavItem[] = [
   { label: "Início", href: "/", icon: Home, ready: true },
-  { label: "Doramas", href: "/doramas", icon: Film },
-  { label: "Categorias", href: "/categorias", icon: Layers },
-  { label: "Minha Lista", href: "/minha-lista", icon: Bookmark },
+  { label: "Doramas", href: "/doramas", icon: Film, ready: true },
+  { label: "Categorias", href: "/categorias", icon: Layers, ready: true },
+  { label: "Minha Lista", href: "/minha-lista", icon: Bookmark, ready: true },
 ];
 
 /** Menu inferior (celular). */
 export const clientBottomNav: NavItem[] = [
   { label: "Início", href: "/", icon: Home, ready: true },
-  { label: "Buscar", href: "/buscar", icon: Search },
-  { label: "Minha Lista", href: "/minha-lista", icon: Bookmark },
-  { label: "Perfil", href: "/perfil", icon: User },
+  { label: "Buscar", href: "/buscar", icon: Search, ready: true },
+  { label: "Minha Lista", href: "/minha-lista", icon: Bookmark, ready: true },
+  { label: "Perfil", href: "/perfil", icon: User, ready: true },
 ];
 
 /** Menu lateral do painel administrativo. */

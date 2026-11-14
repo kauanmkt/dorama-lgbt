@@ -58,13 +58,13 @@ export function Header() {
         </nav>
 
         <div className="ml-auto flex items-center gap-1 sm:gap-2">
-          <button
-            type="button"
+          <Link
+            href="/buscar"
             aria-label="Buscar"
             className="hidden h-10 w-10 items-center justify-center rounded-full text-fg-muted transition-colors hover:bg-white/10 hover:text-fg md:flex"
           >
             <Search className="size-5" />
-          </button>
+          </Link>
           <button
             type="button"
             aria-label="Notificações"
@@ -72,12 +72,13 @@ export function Header() {
           >
             <Bell className="size-5" />
           </button>
-          <div
+          <Link
+            href="/perfil"
             aria-label="Minha conta"
-            className="ml-1 flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-accent-500 text-sm font-bold"
+            className="ml-1 flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-accent-500 text-sm font-bold ring-2 ring-transparent transition hover:ring-brand-300"
           >
             V
-          </div>
+          </Link>
         </div>
       </div>
     </header>

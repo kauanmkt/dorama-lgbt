@@ -1,92 +1,107 @@
-import { Info, Play, Plus } from "lucide-react";
-import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
-import { PosterPlaceholder } from "@/components/ui/PosterPlaceholder";
+import { ContinueCard } from "@/components/catalog/ContinueCard";
+import { DoramaCard } from "@/components/catalog/DoramaCard";
+import { HeroCarousel, type HeroItem } from "@/components/catalog/HeroCarousel";
+import { Rail } from "@/components/catalog/Rail";
+import { TopCard } from "@/components/catalog/TopCard";
+import {
+  categoryName,
+  episodeCount,
+  firstEpisode,
+  getCategories,
+  getContinueWatching,
+  getDoramasByCategory,
+  getFeaturedDoramas,
+  getMyList,
+  getNewReleases,
+  getTopDoramas,
+} from "@/lib/catalog";
 
-/**
- * PÁGINA INICIAL — versão da Etapa 1 (prévia visual).
- * Os dados abaixo são fictícios. Na Etapa 2 a home ganha todos os carrosséis
- * e, na Etapa 4, passa a ler o catálogo real do Supabase.
- */
-const previewRow = [
-  "Amor em Seul",
-  "Entre Ondas",
-  "Café das 7",
-  "Promessa de Verão",
-  "Linhas Cruzadas",
-  "Céu de Bangkok",
-  "Segredo do Campus",
-  "Luz de Neon",
-];
+/** PÁGINA INICIAL — tudo aqui é montado a partir do catálogo, sem nada fixo no código. */
+export default async function HomePage() {
+  const [featured, continueWatching, myList, releases, top, categories] = await Promise.all([
+    getFeaturedDoramas(),
+    getContinueWatching(),
+    getMyList(),
+    getNewReleases(),
+    getTopDoramas(10),
+    getCategories(),
+  ]);
+  const myListSlugs = new Set(myList.map((d) => d.slug));
 
-export default function HomePage() {
+  // Trilhos por categoria (só os que têm conteúdo)
+  const categoryRails = (
+    await Promise.all(
+      categories.map(async (c) => ({ category: c, doramas: await getDoramasByCategory(c.slug) })),
+    )
+  ).filter((r) => r.doramas.length >= 3); // trilhos com poucos títulos ficam de fora
+
+  const heroItems: HeroItem[] = featured.map((d) => ({
+    slug: d.slug,
+    title: d.title,
+    tagline: d.tagline,
+    synopsis: d.synopsis,
+    year: d.year,
+    ageRating: d.ageRating,
+    categories: d.categories.map(categoryName),
+    episodes: episodeCount(d),
+    artSeed: d.artSeed,
+    bannerUrl: d.bannerUrl,
+    firstEpisodeId: firstEpisode(d)?.id,
+    inMyList: myListSlugs.has(d.slug),
+  }));
+
   return (
     <>
-      {/* ===== Banner de destaque ===== */}
-      <section className="relative isolate flex min-h-[78svh] items-end overflow-hidden md:min-h-[88svh]">
-        {/* Arte provisória: luzes roxas no lugar da imagem do banner */}
-        <div aria-hidden className="absolute inset-0 -z-10 bg-ink-900">
-          <div className="animate-glow absolute top-[-10%] right-[-10%] h-[70vmax] w-[70vmax] rounded-full bg-brand-600/70 blur-[110px]" />
-          <div className="animate-glow absolute bottom-[-20%] left-[20%] h-[45vmax] w-[45vmax] rounded-full bg-accent-500/40 blur-[110px] [animation-delay:-3s]" />
-          <div className="absolute inset-0 bg-gradient-to-t from-ink-950 via-ink-950/40 to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-r from-ink-950/85 via-ink-950/10 to-transparent" />
-        </div>
+      <HeroCarousel items={heroItems} />
 
-        <div className="mx-auto w-full max-w-[1600px] px-4 pb-14 sm:px-6 md:pb-24 lg:px-10">
-          <div className="max-w-xl animate-fade-up">
-            <div className="mb-4 flex flex-wrap items-center gap-2">
-              <Badge tone="brand">Em destaque</Badge>
-              <Badge>BL</Badge>
-              <Badge>Romance</Badge>
-              <span className="text-xs font-semibold text-fg-muted">2026 · 12 episódios · 16+</span>
-            </div>
-
-            <h1 className="text-4xl leading-[1.05] font-extrabold sm:text-5xl lg:text-6xl">
-              Título do Dorama
-              <span className="text-gradient-brand block">em Destaque</span>
-            </h1>
-
-            <p className="mt-4 line-clamp-3 text-[15px] leading-relaxed text-fg-muted sm:text-base">
-              Aqui aparecerá a sinopse do dorama escolhido como destaque no painel
-              administrativo. Uma descrição curta, envolvente e direta para convidar o
-              usuário a dar o play.
-            </p>
-
-            <div className="mt-7 flex items-center gap-3">
-              <Button size="lg" className="flex-1 sm:flex-none">
-                <Play className="fill-current" /> Assistir
-              </Button>
-              <Button size="lg" variant="ghost" className="flex-1 sm:flex-none">
-                <Plus /> Minha Lista
-              </Button>
-              <Button size="icon" variant="ghost" aria-label="Mais informações" className="hidden h-13 w-13 sm:inline-flex">
-                <Info />
-              </Button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ===== Prévia de carrossel ===== */}
-      <section className="relative z-10 -mt-6 md:-mt-12">
-        <div className="mx-auto max-w-[1600px]">
-          <h2 className="mb-3 px-4 text-lg font-bold sm:px-6 md:text-xl lg:px-10">Lançamentos</h2>
-          <div className="no-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-px-4 px-4 pb-2 sm:scroll-px-6 sm:px-6 lg:scroll-px-10 lg:px-10">
-            {previewRow.map((title, i) => (
-              <div
-                key={title}
-                className="w-[38%] shrink-0 snap-start sm:w-[24%] md:w-[18%] lg:w-[14%]"
-              >
-                <PosterPlaceholder
-                  title={title}
-                  seed={i}
-                  className="transition-transform duration-300 hover:scale-[1.04]"
-                />
-              </div>
+      <div className="relative z-10 -mt-10 space-y-8 md:-mt-16 md:space-y-10">
+        {continueWatching.length > 0 && (
+          <Rail
+            title="Continuar assistindo"
+            itemClassName="w-[72%] sm:w-[44%] md:w-[31%] lg:w-[23.6%] 2xl:w-[19%]"
+          >
+            {continueWatching.map((c) => (
+              <ContinueCard
+                key={c.episode.id}
+                dorama={c.dorama}
+                episode={c.episode}
+                percent={c.percent}
+              />
             ))}
-          </div>
-        </div>
-      </section>
+          </Rail>
+        )}
+
+        <Rail title="Lançamentos" href="/doramas">
+          {releases.map((d) => (
+            <DoramaCard key={d.slug} dorama={d} />
+          ))}
+        </Rail>
+
+        <Rail
+          title="Top 10 no Dorama LGBT"
+          itemClassName="w-[52%] sm:w-[34%] md:w-[26%] lg:w-[20.5%] 2xl:w-[16.5%]"
+        >
+          {top.map((d, i) => (
+            <TopCard key={d.slug} dorama={d} rank={i + 1} />
+          ))}
+        </Rail>
+
+        {myList.length > 0 && (
+          <Rail title="Minha lista" href="/minha-lista">
+            {myList.map((d) => (
+              <DoramaCard key={d.slug} dorama={d} />
+            ))}
+          </Rail>
+        )}
+
+        {categoryRails.map(({ category, doramas }) => (
+          <Rail key={category.slug} title={category.name} href={`/categoria/${category.slug}`}>
+            {doramas.map((d) => (
+              <DoramaCard key={d.slug} dorama={d} />
+            ))}
+          </Rail>
+        ))}
+      </div>
     </>
   );
 }

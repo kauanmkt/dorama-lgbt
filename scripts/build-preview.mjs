@@ -8,12 +8,17 @@
 import { mkdir, writeFile } from "node:fs/promises";
 
 const base = process.argv[2] ?? "http://localhost:3100";
-const views = [
-  { id: "inicio", path: "/", label: "Início" },
-  { id: "identidade", path: "/identidade", label: "Identidade" },
-  { id: "admin", path: "/admin", label: "Painel" },
+
+// Telas fixas na barra "Prévia"; o resto é descoberto seguindo os links do site
+const tabs = [
+  { path: "/", label: "Início" },
+  { path: "/entrar", label: "Login" },
+  { path: "/identidade", label: "Identidade" },
+  { path: "/admin", label: "Painel" },
 ];
-const routeToHash = Object.fromEntries(views.map((v) => [v.path, `#${v.id}`]));
+const MAX_PAGES = 400;
+
+const idFor = (path) => (path === "/" ? "inicio" : path.slice(1).replace(/\//g, "--"));
 
 const get = async (url, as = "text") => {
   const r = await fetch(url);
@@ -21,12 +26,29 @@ const get = async (url, as = "text") => {
   return as === "buffer" ? Buffer.from(await r.arrayBuffer()) : r.text();
 };
 
+// 0) Descobre as páginas (segue links internos a partir das telas fixas)
+const pages = {};
+const queue = tabs.map((t) => t.path);
+while (queue.length && Object.keys(pages).length < MAX_PAGES) {
+  const path = queue.shift();
+  if (pages[path]) continue;
+  try {
+    pages[path] = await get(base + path);
+  } catch {
+    continue;
+  }
+  for (const m of pages[path].matchAll(/href="(\/[^"#?]*)"/g)) {
+    const p = m[1];
+    if (!p.startsWith("/_next") && !/\.[a-z0-9]+$/i.test(p) && !pages[p] && !queue.includes(p)) queue.push(p);
+  }
+}
+const views = Object.keys(pages).map((path) => ({ path, id: idFor(path) }));
+const routeToHash = Object.fromEntries(views.map((v) => [v.path, `#${v.id}`]));
+console.log(`• ${views.length} páginas encontradas`);
+
 // 1) CSS de todas as páginas, com as fontes embutidas
 const cssHrefs = new Set();
-const pages = {};
-for (const v of views) {
-  const html = await get(base + v.path);
-  pages[v.id] = html;
+for (const html of Object.values(pages)) {
   for (const m of html.matchAll(/<link[^>]+rel="stylesheet"[^>]+href="([^"]+)"/g)) cssHrefs.add(m[1]);
 }
 let css = "";
@@ -40,7 +62,7 @@ for (const m of [...new Set([...css.matchAll(/url\(["']?((?:\.\.\/media|\/_next\
 
 // 2) Conteúdo de cada página (sem scripts do Next), com links trocados por #âncoras
 const sections = views.map((v) => {
-  let body = pages[v.id].match(/<body[^>]*>([\s\S]*)<\/body>/)[1];
+  let body = pages[v.path].match(/<body[^>]*>([\s\S]*)<\/body>/)[1];
   body = body
     .replace(/<script[\s\S]*?<\/script>/g, "")
     .replace(/<link[^>]*>/g, "")
@@ -50,7 +72,7 @@ const sections = views.map((v) => {
     .replace(/(id="|url\(#)(dl-mark-[^")]+)/g, `$1$2-${v.id}`);
   return `<div class="dl-view" data-view="${v.id}" hidden>${body}</div>`;
 });
-const htmlClass = pages.inicio.match(/<html[^>]*class="([^"]*)"/)?.[1] ?? "";
+const htmlClass = pages["/"].match(/<html[^>]*class="([^"]*)"/)?.[1] ?? "";
 
 // 3) Pequeno script: troca de telas, cabeçalho ao rolar e menu do painel no celular
 const script = `
@@ -60,6 +82,7 @@ const script = `
     var h=(location.hash||'').slice(1); if(ids.indexOf(h)<0) h='inicio';
     document.querySelectorAll('.dl-view').forEach(function(el){ el.hidden = el.dataset.view!==h; });
     document.querySelectorAll('[data-dl-tab]').forEach(function(el){ el.dataset.active = el.dataset.dlTab===h; });
+    document.getElementById('dl-tabs').style.display = h.indexOf('assistir--')===0 ? 'none' : '';
     window.scrollTo(0,0); onScroll();
   }
   function onScroll(){
@@ -80,7 +103,7 @@ const script = `
 })();`;
 
 // Gaveta do menu do painel (celular): cópia da barra lateral
-const adminAside = pages.admin.match(/<aside class="sticky[\s\S]*?<\/aside>/)?.[0] ?? "";
+const adminAside = (pages["/admin"] ?? "").match(/<aside class="sticky[\s\S]*?<\/aside>/)?.[0] ?? "";
 const drawer = adminAside
   ? `<div id="dl-drawer" hidden style="position:fixed;inset:0;z-index:60">
       <div data-dl-close style="position:absolute;inset:0;background:rgba(0,0,0,.7)"></div>
@@ -91,8 +114,8 @@ const drawer = adminAside
     </div>`
   : "";
 
-const tabs = views
-  .map((v) => `<a href="#${v.id}" data-dl-tab="${v.id}">${v.label}</a>`)
+const tabLinks = tabs
+  .map((t) => `<a href="#${idFor(t.path)}" data-dl-tab="${idFor(t.path)}">${t.label}</a>`)
   .join("");
 
 const out = `<!DOCTYPE html>
@@ -115,7 +138,7 @@ const out = `<!DOCTYPE html>
 <body class="min-h-full">
 ${sections.join("\n")}
 ${drawer}
-<nav id="dl-tabs" aria-label="Telas da prévia"><span>Prévia</span>${tabs}</nav>
+<nav id="dl-tabs" aria-label="Telas da prévia"><span>Prévia</span>${tabLinks}</nav>
 <script>${script}</script>
 </body>
 </html>`;

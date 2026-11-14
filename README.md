@@ -20,11 +20,34 @@ npm run dev      # abre em http://localhost:3000
 | `npm run lint`    | Procura erros e más práticas no código                |
 | `npm run icons`   | Recria os ícones do app a partir da logo              |
 
-## Páginas atuais (Etapa 1)
+## Páginas atuais
 
-- `/` — Início (prévia visual do banner e carrossel)
-- `/identidade` — Guia da identidade visual (página interna)
-- `/admin` — Painel administrativo (estrutura)
+**Área do cliente**
+- `/` — Início: banner de destaques, Continuar assistindo, Lançamentos, Top 10, Minha lista e trilhos por categoria
+- `/dorama/[slug]` — Página do dorama: banner, sinopse, temporadas, episódios e recomendações
+- `/assistir/[episódio]` — Player em tela cheia (interface; vídeo real na Etapa 8)
+- `/buscar` — Busca com filtros por categoria e ordenação
+- `/doramas` — Catálogo completo
+- `/categorias` e `/categoria/[slug]` — Navegação por categoria
+- `/minha-lista` — Doramas salvos
+- `/perfil` — Conta, plano e telas
+- `/entrar`, `/cadastro`, `/recuperar-senha` — Telas de acesso
+
+**Painel**
+- `/admin` — Dashboard (estrutura)
+
+**Interna**
+- `/identidade` — Guia da identidade visual
+
+> Os dados atuais são fictícios e ficam em `src/lib/mock/catalog.ts`.
+> Todas as telas leem o catálogo por `src/lib/catalog.ts` — na Etapa 4 só esse arquivo
+> passa a consultar o Supabase.
+
+## Prévia estática
+
+`npm run build && npx next start -p 3100` e, em outro terminal,
+`npm run preview -- http://localhost:3100` gera `preview/index.html`
+(uma cópia visual do site num único arquivo, usada para acompanhamento).
 
 ## Organização das pastas
 
@@ -32,18 +55,26 @@ npm run dev      # abre em http://localhost:3000
 src/
 ├── app/                    → Páginas (cada pasta = um endereço do site)
 │   ├── (cliente)/          → Área do cliente (com cabeçalho e menu do celular)
+│   ├── (auth)/             → Login, cadastro e recuperação de senha
+│   ├── assistir/           → Player (tela cheia)
 │   ├── admin/              → Painel administrativo (com menu lateral)
 │   ├── globals.css         → Identidade visual: cores, fontes, animações
 │   ├── layout.tsx          → Base de todas as páginas
 │   └── manifest.ts         → Configuração do PWA (app instalável)
 ├── components/
 │   ├── brand/              → Logo
-│   ├── ui/                 → Peças reutilizáveis (botões, etiquetas, capas)
+│   ├── ui/                 → Peças reutilizáveis (botões, etiquetas)
+│   ├── catalog/            → Capas, carrosséis, destaque, episódios, busca
+│   ├── player/             → Interface do player
+│   ├── auth/               → Campos dos formulários de acesso
 │   ├── layout/             → Cabeçalho, rodapé, menu inferior
 │   └── admin/              → Componentes do painel
 ├── config/                 → Nome do site e itens dos menus
 ├── fonts/                  → Fontes Sora e Manrope (locais)
-└── lib/                    → Funções auxiliares
+├── lib/
+│   ├── catalog.ts          → Acesso ao catálogo (único ponto a trocar na Etapa 4)
+│   └── mock/               → Dados fictícios temporários
+└── types/                  → Formato dos dados (dorama, temporada, episódio...)
 public/icons/               → Ícones do PWA
 scripts/                    → Ferramentas (gerador de ícones)
 ```
@@ -56,7 +87,7 @@ scripts/                    → Ferramentas (gerador de ícones)
 ## Roteiro
 
 - [x] 1. Estrutura do projeto e identidade visual
-- [ ] 2. Frontend completo da área do cliente
+- [x] 2. Frontend completo da área do cliente
 - [ ] 3. Frontend do painel administrativo
 - [ ] 4. Integração com Supabase
 - [ ] 5. Autenticação e permissões

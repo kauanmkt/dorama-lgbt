@@ -72,6 +72,14 @@
       opacity: 1;
     }
   }
+  @keyframes hero-zoom {
+    from {
+      transform: scale(1.08);
+    }
+    to {
+      transform: scale(1);
+    }
+  }
   @keyframes glow {
     from {
       opacity: 0.55;
@@ -152,4 +160,35 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* Linha do tempo do player */
+.player-range {
+  appearance: none;
+  background: linear-gradient(
+    to right,
+    var(--color-brand-500) var(--pct, 0%),
+    rgb(255 255 255 / 0.25) var(--pct, 0%)
+  );
+  border-radius: 999px;
+  cursor: pointer;
+  transition: height 0.15s;
+}
+.player-range:hover {
+  height: 6px;
+}
+.player-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 0 0 4px rgb(166 31 240 / 0.45);
+}
+.player-range::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 0;
+  border-radius: 999px;
+  background: #fff;
 }

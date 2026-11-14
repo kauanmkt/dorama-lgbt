@@ -3,7 +3,7 @@ import { Play, Plus, Trash2 } from "lucide-react";
 import { Logo, LogoMark } from "@/components/brand/Logo";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { PosterPlaceholder } from "@/components/ui/PosterPlaceholder";
+import { Artwork } from "@/components/catalog/Artwork";
 
 export const metadata: Metadata = { title: "Identidade visual" };
 
@@ -138,7 +138,9 @@ export default function IdentidadePage() {
         <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
           {["Amor em Seul", "Entre Ondas", "Café das 7", "Luz de Neon", "Céu de Bangkok", "Linhas"].map(
             (t, i) => (
-              <PosterPlaceholder key={t} title={t} seed={i} />
+              <div key={t} className="aspect-[2/3] overflow-hidden rounded-xl ring-1 ring-white/10">
+                <Artwork title={t} seed={i} />
+              </div>
             ),
           )}
         </div>
