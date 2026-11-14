@@ -1,10 +1,11 @@
+import { Suspense } from "react";
 import { ContinueCard } from "@/components/catalog/ContinueCard";
 import { DoramaCard } from "@/components/catalog/DoramaCard";
 import { HeroCarousel, type HeroItem } from "@/components/catalog/HeroCarousel";
 import { Rail } from "@/components/catalog/Rail";
 import { TopCard } from "@/components/catalog/TopCard";
 import {
-  categoryName,
+  categoryNameFrom,
   episodeCount,
   firstEpisode,
   getCategories,
@@ -16,24 +17,24 @@ import {
   getTopDoramas,
 } from "@/lib/catalog";
 
-/** PÁGINA INICIAL — tudo aqui é montado a partir do catálogo, sem nada fixo no código. */
+/**
+ * PÁGINA INICIAL — montada a partir do catálogo, sem nada fixo no código.
+ * As partes iguais para todos vêm do cache (rápido); as fileiras pessoais
+ * (Continuar assistindo, Minha lista) carregam em seguida, para cada usuário.
+ */
 export default async function HomePage() {
-  const [featured, continueWatching, myList, releases, top, categories] = await Promise.all([
+  const [featured, releases, top, categories] = await Promise.all([
     getFeaturedDoramas(),
-    getContinueWatching(),
-    getMyList(),
     getNewReleases(),
     getTopDoramas(10),
     getCategories(),
   ]);
-  const myListSlugs = new Set(myList.map((d) => d.slug));
 
-  // Trilhos por categoria (só os que têm conteúdo)
   const categoryRails = (
     await Promise.all(
       categories.map(async (c) => ({ category: c, doramas: await getDoramasByCategory(c.slug) })),
     )
-  ).filter((r) => r.doramas.length >= 3); // trilhos com poucos títulos ficam de fora
+  ).filter((r) => r.doramas.length >= 3); // fileiras com poucos títulos ficam de fora
 
   const heroItems: HeroItem[] = featured.map((d) => ({
     slug: d.slug,
@@ -42,34 +43,24 @@ export default async function HomePage() {
     synopsis: d.synopsis,
     year: d.year,
     ageRating: d.ageRating,
-    categories: d.categories.map(categoryName),
+    categories: d.categories.map((c) => categoryNameFrom(categories, c)),
     episodes: episodeCount(d),
     artSeed: d.artSeed,
     bannerUrl: d.bannerUrl,
     firstEpisodeId: firstEpisode(d)?.id,
-    inMyList: myListSlugs.has(d.slug),
+    inMyList: false,
   }));
+
+  const isEmpty = featured.length === 0 && releases.length === 0 && top.length === 0;
 
   return (
     <>
-      <HeroCarousel items={heroItems} />
+      {heroItems.length > 0 ? <HeroCarousel items={heroItems} /> : <div className="h-24" />}
 
-      <div className="relative z-10 -mt-10 space-y-8 md:-mt-16 md:space-y-10">
-        {continueWatching.length > 0 && (
-          <Rail
-            title="Continuar assistindo"
-            itemClassName="w-[72%] sm:w-[44%] md:w-[31%] lg:w-[23.6%] 2xl:w-[19%]"
-          >
-            {continueWatching.map((c) => (
-              <ContinueCard
-                key={c.episode.id}
-                dorama={c.dorama}
-                episode={c.episode}
-                percent={c.percent}
-              />
-            ))}
-          </Rail>
-        )}
+      <div className={heroItems.length > 0 ? "relative z-10 -mt-10 space-y-8 md:-mt-16 md:space-y-10" : "space-y-8"}>
+        <Suspense fallback={null}>
+          <ContinueWatchingRail />
+        </Suspense>
 
         <Rail title="Lançamentos" href="/doramas">
           {releases.map((d) => (
@@ -86,13 +77,9 @@ export default async function HomePage() {
           ))}
         </Rail>
 
-        {myList.length > 0 && (
-          <Rail title="Minha lista" href="/minha-lista">
-            {myList.map((d) => (
-              <DoramaCard key={d.slug} dorama={d} />
-            ))}
-          </Rail>
-        )}
+        <Suspense fallback={null}>
+          <MyListRail />
+        </Suspense>
 
         {categoryRails.map(({ category, doramas }) => (
           <Rail key={category.slug} title={category.name} href={`/categoria/${category.slug}`}>
@@ -101,7 +88,38 @@ export default async function HomePage() {
             ))}
           </Rail>
         ))}
+
+        {isEmpty && (
+          <div className="mx-4 rounded-2xl border border-dashed border-line px-6 py-20 text-center sm:mx-6 lg:mx-10">
+            <p className="font-display text-xl font-bold">O catálogo está sendo preparado</p>
+            <p className="mt-2 text-fg-muted">Em breve, novos doramas por aqui.</p>
+          </div>
+        )}
       </div>
     </>
+  );
+}
+
+async function ContinueWatchingRail() {
+  const items = await getContinueWatching();
+  if (items.length === 0) return null;
+  return (
+    <Rail title="Continuar assistindo" itemClassName="w-[72%] sm:w-[44%] md:w-[31%] lg:w-[23.6%] 2xl:w-[19%]">
+      {items.map((c) => (
+        <ContinueCard key={c.episode.id} dorama={c.dorama} episode={c.episode} percent={c.percent} />
+      ))}
+    </Rail>
+  );
+}
+
+async function MyListRail() {
+  const list = await getMyList();
+  if (list.length === 0) return null;
+  return (
+    <Rail title="Minha lista" href="/minha-lista">
+      {list.map((d) => (
+        <DoramaCard key={d.slug} dorama={d} />
+      ))}
+    </Rail>
   );
 }

@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { DoramaGrid } from "@/components/catalog/DoramaGrid";
 import { Container, PageIntro } from "@/components/layout/PageIntro";
-import { getCategories, getCategory, getDoramasByCategory } from "@/lib/catalog";
+import { getCategories, getCategory, getDoramasByCategory, withPlaceholder } from "@/lib/catalog";
 
 export async function generateStaticParams() {
-  return (await getCategories()).map((c) => ({ slug: c.slug }));
+  return withPlaceholder((await getCategories()).map((c) => ({ slug: c.slug })), "slug");
 }
 
 export async function generateMetadata({ params }: PageProps<"/categoria/[slug]">): Promise<Metadata> {

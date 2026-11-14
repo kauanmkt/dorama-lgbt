@@ -60,9 +60,39 @@ for (const m of [...new Set([...css.matchAll(/url\(["']?((?:\.\.\/media|\/_next\
   css = css.replaceAll(m, `data:font/woff2;base64,${data}`);
 }
 
+
+// O React envia partes da página "depois" (Suspense): primeiro um espaço reservado
+// (<!--$?--><template id="B:n">…<!--/$-->), depois o conteúdo (<div hidden id="S:n">)
+// e um script que troca um pelo outro. Como a prévia não roda scripts, fazemos a troca aqui.
+function closeOf(html, from, open, close) {
+  let depth = 0;
+  const re = new RegExp(`${open}|${close}`, "g");
+  re.lastIndex = from;
+  for (let m; (m = re.exec(html)); ) {
+    if (new RegExp(`^(?:${open})$`).test(m[0])) depth++;
+    else if (--depth === 0) return m.index + m[0].length;
+  }
+  return -1;
+}
+function resolveSuspense(html) {
+  for (let guard = 0; guard < 500; guard++) {
+    const seg = /<div hidden id="S:([0-9a-z]+)">/.exec(html);
+    if (!seg) break;
+    const segEnd = closeOf(html, seg.index, "<div[\\s>]", "</div>");
+    const content = html.slice(seg.index + seg[0].length, segEnd - "</div>".length);
+    html = html.slice(0, seg.index) + html.slice(segEnd);
+    const marker = `<!--$?--><template id="B:${seg[1]}"></template>`;
+    const at = html.indexOf(marker);
+    if (at < 0) continue;
+    const end = closeOf(html, at, "<!--\\$[?!]?-->", "<!--/\\$-->");
+    html = html.slice(0, at) + content + html.slice(end);
+  }
+  return html;
+}
+
 // 2) Conteúdo de cada página (sem scripts do Next), com links trocados por #âncoras
 const sections = views.map((v) => {
-  let body = pages[v.path].match(/<body[^>]*>([\s\S]*)<\/body>/)[1];
+  let body = resolveSuspense(pages[v.path].match(/<body[^>]*>([\s\S]*)<\/body>/)[1]);
   body = body
     .replace(/<script[\s\S]*?<\/script>/g, "")
     .replace(/<link[^>]*>/g, "")

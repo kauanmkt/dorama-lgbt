@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 import { Play, Share2 } from "lucide-react";
 import { Artwork } from "@/components/catalog/Artwork";
 import { DoramaCard } from "@/components/catalog/DoramaCard";
@@ -10,17 +11,21 @@ import { SeasonEpisodes } from "@/components/catalog/SeasonEpisodes";
 import { Badge } from "@/components/ui/Badge";
 import { ButtonLink } from "@/components/ui/Button";
 import {
-  categoryName,
+  categoryNameFrom,
   episodeCount,
+  firstEpisode,
   getAllDoramas,
+  getCategories,
   getContinueWatching,
   getDoramaBySlug,
   getRelatedDoramas,
   isInMyList,
+  withPlaceholder,
 } from "@/lib/catalog";
+import type { Dorama, Episode } from "@/types/catalog";
 
 export async function generateStaticParams() {
-  return (await getAllDoramas()).map((d) => ({ slug: d.slug }));
+  return withPlaceholder((await getAllDoramas()).map((d) => ({ slug: d.slug })), "slug");
 }
 
 export async function generateMetadata({ params }: PageProps<"/dorama/[slug]">): Promise<Metadata> {
@@ -34,18 +39,7 @@ export default async function DoramaPage({ params }: PageProps<"/dorama/[slug]">
   const dorama = await getDoramaBySlug(slug);
   if (!dorama) notFound();
 
-  const [related, inList, continueWatching] = await Promise.all([
-    getRelatedDoramas(dorama),
-    isInMyList(dorama.slug),
-    getContinueWatching(),
-  ]);
-
-  // Se o usuário já começou, o botão vira "Continuar T1:E4"
-  const resume = continueWatching.find((c) => c.dorama.slug === dorama.slug);
-  const start = resume?.episode ?? dorama.seasons[0]?.episodes[0];
-  const progress = Object.fromEntries(
-    continueWatching.filter((c) => c.dorama.slug === dorama.slug).map((c) => [c.episode.id, c.percent]),
-  );
+  const [related, categories] = await Promise.all([getRelatedDoramas(dorama), getCategories()]);
   const totalEpisodes = episodeCount(dorama);
 
   return (
@@ -98,22 +92,10 @@ export default async function DoramaPage({ params }: PageProps<"/dorama/[slug]">
               </span>
             </p>
 
-            <div className="mt-6 flex flex-wrap items-center gap-3">
-              {start && (
-                <ButtonLink href={`/assistir/${start.id}`} size="lg" className="flex-1 sm:flex-none">
-                  <Play className="fill-current" />
-                  {resume ? `Continuar T${start.season}:E${start.number}` : "Assistir"}
-                </ButtonLink>
-              )}
-              <MyListButton slug={dorama.slug} initial={inList} size="lg" className="flex-1 sm:flex-none" />
-              <button
-                type="button"
-                aria-label="Compartilhar"
-                className="hidden h-13 w-13 items-center justify-center rounded-full bg-white/10 backdrop-blur-md transition hover:bg-white/20 sm:flex"
-              >
-                <Share2 className="size-5" />
-              </button>
-            </div>
+            {/* Botões: o estado pessoal (Continuar / Minha Lista) carrega em seguida */}
+            <Suspense fallback={<WatchActions dorama={dorama} start={firstEpisode(dorama)} inList={false} />}>
+              <UserWatchActions dorama={dorama} />
+            </Suspense>
           </div>
         </div>
       </section>
@@ -129,13 +111,11 @@ export default async function DoramaPage({ params }: PageProps<"/dorama/[slug]">
               </p>
             </section>
 
-            <SeasonEpisodes
-              seasons={dorama.seasons}
-              artSeed={dorama.artSeed}
-              title={dorama.title}
-              progress={progress}
-              initialSeason={resume?.episode.season}
-            />
+            <Suspense
+              fallback={<SeasonEpisodes seasons={dorama.seasons} artSeed={dorama.artSeed} title={dorama.title} />}
+            >
+              <EpisodesWithProgress dorama={dorama} />
+            </Suspense>
           </div>
 
           <aside className="space-y-6 text-sm lg:pt-1">
@@ -144,7 +124,7 @@ export default async function DoramaPage({ params }: PageProps<"/dorama/[slug]">
                 {dorama.categories.map((c) => (
                   <Link key={c} href={`/categoria/${c}`}>
                     <Badge tone="brand" className="hover:bg-brand-600/35">
-                      {categoryName(c)}
+                      {categoryNameFrom(categories, c)}
                     </Badge>
                   </Link>
                 ))}
@@ -179,6 +159,75 @@ function InfoRow({ label, children }: { label: string; children: React.ReactNode
     <div>
       <p className="mb-1.5 text-xs font-bold tracking-wider text-fg-subtle uppercase">{label}</p>
       <div className="font-semibold text-fg">{children}</div>
+    </div>
+  );
+}
+
+/** Progresso do usuário neste dorama (Continuar assistindo). */
+async function userProgress(dorama: Dorama) {
+  const items = (await getContinueWatching(50)).filter((c) => c.dorama.slug === dorama.slug);
+  return {
+    resume: items[0],
+    progress: Object.fromEntries(items.map((c) => [c.episode.id, c.percent])),
+  };
+}
+
+async function UserWatchActions({ dorama }: { dorama: Dorama }) {
+  const [{ resume }, inList] = await Promise.all([userProgress(dorama), isInMyList(dorama)]);
+  return (
+    <WatchActions
+      dorama={dorama}
+      start={resume?.episode ?? firstEpisode(dorama)}
+      resuming={Boolean(resume)}
+      inList={inList}
+    />
+  );
+}
+
+async function EpisodesWithProgress({ dorama }: { dorama: Dorama }) {
+  const { resume, progress } = await userProgress(dorama);
+  return (
+    <SeasonEpisodes
+      seasons={dorama.seasons}
+      artSeed={dorama.artSeed}
+      title={dorama.title}
+      progress={progress}
+      initialSeason={resume?.episode.season}
+    />
+  );
+}
+
+function WatchActions({
+  dorama,
+  start,
+  resuming = false,
+  inList,
+}: {
+  dorama: Dorama;
+  start?: Episode;
+  resuming?: boolean;
+  inList: boolean;
+}) {
+  return (
+    <div className="mt-6 flex flex-wrap items-center gap-3">
+      {start ? (
+        <ButtonLink href={`/assistir/${start.id}`} size="lg" className="flex-1 sm:flex-none">
+          <Play className="fill-current" />
+          {resuming ? `Continuar T${start.season}:E${start.number}` : "Assistir"}
+        </ButtonLink>
+      ) : (
+        <span className="flex h-13 flex-1 items-center justify-center rounded-full bg-white/10 px-7 font-semibold text-fg-muted sm:flex-none">
+          Em breve
+        </span>
+      )}
+      <MyListButton key={String(inList)} slug={dorama.slug} initial={inList} size="lg" className="flex-1 sm:flex-none" />
+      <button
+        type="button"
+        aria-label="Compartilhar"
+        className="hidden h-13 w-13 items-center justify-center rounded-full bg-white/10 backdrop-blur-md transition hover:bg-white/20 sm:flex"
+      >
+        <Share2 className="size-5" />
+      </button>
     </div>
   );
 }

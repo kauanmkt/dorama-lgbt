@@ -253,7 +253,7 @@ const episodeTitles = [
   "Para sempre",
 ];
 
-function buildSeasons(slug: string, counts: number[]): Season[] {
+function buildSeasons(slug: string, counts: number[], airing: boolean): Season[] {
   return counts.map((count, s) => ({
     number: s + 1,
     episodes: Array.from({ length: count }, (_, i): Episode => ({
@@ -265,6 +265,8 @@ function buildSeasons(slug: string, counts: number[]): Season[] {
       synopsis:
         "Descrição do episódio cadastrada pelo painel administrativo. Um resumo curto, sem revelar spoilers importantes.",
       durationMin: 42 + ((i * 7 + s * 5) % 18),
+      // Em séries em exibição, os 2 últimos episódios ainda não têm vídeo
+      available: !(airing && i + 1 > count - 2),
     })),
   }));
 }
@@ -272,7 +274,7 @@ function buildSeasons(slug: string, counts: number[]): Season[] {
 export const mockDoramas: Dorama[] = seeds.map(({ seasonEpisodes, ...d }, i) => ({
   ...d,
   id: String(i + 1),
-  seasons: buildSeasons(d.slug, seasonEpisodes),
+  seasons: buildSeasons(d.slug, seasonEpisodes, d.status === "em_exibicao"),
 }));
 
 /** Simula o progresso do usuário logado */

@@ -4,9 +4,51 @@ Plataforma de streaming de doramas: área do cliente + painel administrativo, in
 
 **Tecnologias:** Next.js 16 · TypeScript · Tailwind CSS 4 · Supabase · Cloudflare R2 · Vercel
 
+## Banco de dados (Supabase)
+
+Arquivos em `supabase/`:
+
+| Arquivo | Para que serve | Quando rodar |
+| --- | --- | --- |
+| `migrations/0001_estrutura_inicial.sql` | Cria tabelas, relações, regras de segurança (RLS) e funções | **Uma vez**, num projeto novo |
+| `seed-demo.sql` | Catálogo, categorias e planos de demonstração (fictícios) | Opcional, para testar |
+| `remover-demo.sql` | Apaga os doramas e planos de demonstração | Antes de lançar |
+| `tornar-admin.sql` | Transforma sua conta em administradora | Depois de criar sua conta (Etapa 5) |
+
+**Como aplicar:** Supabase → **SQL Editor** → **New query** → colar o conteúdo → **Run**.
+
+### O que o banco guarda
+
+- **Catálogo:** `doramas`, `seasons` (temporadas), `episodes`, `categories`, `dorama_categories`
+- **Vídeos:** `videos` — caminho do arquivo no R2 (só admin enxerga)
+- **Contas:** `profiles` (criado sozinho no cadastro), `admins`
+- **Acesso:** `plans`, `subscriptions` (acesso atual de cada cliente), `payments`
+- **Uso:** `favorites` (Minha Lista), `watch_progress`, `playback_sessions` (telas)
+- **Configurações:** `settings`
+
+### Segurança (RLS)
+
+Todas as tabelas têm regras no próprio banco — o app nunca decide sozinho:
+- Visitantes veem só doramas **publicados**; rascunhos e vídeos ficam invisíveis.
+- Cada cliente vê e altera apenas a própria lista, progresso, perfil e assinatura.
+- Ninguém consegue se tornar admin ou estender o próprio acesso pelo app.
+- O caminho dos vídeos nunca é exposto: o link para assistir é gerado no servidor (Etapa 7).
+
+Teste automático das regras (47 verificações, roda num Postgres local):
+`cd scripts/db-tests && npm i @electric-sql/pglite && node test-banco.mjs ../..`
+
+### Como o catálogo chega às telas
+
+`src/lib/catalog.ts` lê todo o catálogo publicado numa única consulta e guarda em cache
+(renova a cada 5 minutos, ou na hora quando o painel publicar algo — Etapa 6).
+Sem Supabase configurado, o app usa os dados fictícios.
+
 ## Como rodar no computador
 
 Pré-requisito: [Node.js 20 ou superior](https://nodejs.org).
+
+Copie `.env.example` para `.env.local` e preencha a URL e a chave publishable do Supabase
+(o arquivo `.env.local` já vem preenchido com o seu projeto).
 
 ```bash
 npm install      # instala as dependências (só na primeira vez)
@@ -19,6 +61,7 @@ npm run dev      # abre em http://localhost:3000
 | `npm run build`   | Gera a versão de produção (o mesmo que a Vercel faz)  |
 | `npm run lint`    | Procura erros e más práticas no código                |
 | `npm run icons`   | Recria os ícones do app a partir da logo              |
+| `npm run seed`    | Regera `supabase/seed-demo.sql` a partir dos dados fictícios |
 
 ## Páginas atuais
 
@@ -86,12 +129,14 @@ src/
 ├── config/                 → Nome do site e itens dos menus
 ├── fonts/                  → Fontes Sora e Manrope (locais)
 ├── lib/
-│   ├── catalog.ts          → Acesso ao catálogo (único ponto a trocar na Etapa 4)
+│   ├── catalog.ts          → Acesso ao catálogo (Supabase com cache, ou dados fictícios)
+│   ├── supabase/           → Conexões com o Supabase (visitante, usuário logado, navegador)
 │   ├── admin.ts            → Acesso aos dados do painel (idem)
 │   ├── format.ts           → Datas, dinheiro, tamanhos e regras de status
 │   └── mock/               → Dados fictícios temporários
 └── types/                  → Formato dos dados (dorama, temporada, episódio...)
 public/icons/               → Ícones do PWA
+supabase/                   → Estrutura do banco (SQL) e dados de demonstração
 scripts/                    → Ferramentas (gerador de ícones)
 ```
 
@@ -105,7 +150,7 @@ scripts/                    → Ferramentas (gerador de ícones)
 - [x] 1. Estrutura do projeto e identidade visual
 - [x] 2. Frontend completo da área do cliente
 - [x] 3. Frontend do painel administrativo
-- [ ] 4. Integração com Supabase
+- [x] 4. Integração com Supabase
 - [ ] 5. Autenticação e permissões
 - [ ] 6. Cadastro de doramas e episódios
 - [ ] 7. Integração com Cloudflare R2

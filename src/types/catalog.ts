@@ -19,6 +19,8 @@ export type Episode = {
   synopsis: string;
   durationMin: number;
   thumbnailUrl?: string;
+  /** Há vídeo pronto para assistir? (falso = aparece como "Em breve") */
+  available: boolean;
 };
 
 export type Season = {
@@ -43,6 +45,8 @@ export type Dorama = {
   status: DoramaStatus;
   isNew?: boolean;
   isFeatured?: boolean;
+  /** Ordem no banner principal (1 = primeiro) */
+  featuredPosition?: number;
   popularity: number;
   /** Usado para gerar a arte provisória enquanto não há capa real */
   artSeed: number;

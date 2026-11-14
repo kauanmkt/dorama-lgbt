@@ -23,7 +23,9 @@ export function SeasonEpisodes({
   /** Abre direto na temporada que o usuário está assistindo */
   initialSeason?: number;
 }) {
-  const [current, setCurrent] = useState(initialSeason ?? seasons[0]?.number ?? 1);
+  const [current, setCurrent] = useState(
+    initialSeason ?? seasons[0]?.number ?? 1,
+  );
   const season = seasons.find((s) => s.number === current) ?? seasons[0];
   if (!season) return null;
 
@@ -51,7 +53,9 @@ export function SeasonEpisodes({
             <ChevronDown className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-fg-muted" />
           </label>
         ) : (
-          <span className="text-sm font-semibold text-fg-muted">Temporada 1</span>
+          <span className="text-sm font-semibold text-fg-muted">
+            Temporada 1
+          </span>
         )}
       </div>
 
@@ -60,9 +64,14 @@ export function SeasonEpisodes({
           const pct = progress[ep.id];
           return (
             <li key={ep.id}>
-              <Link
-                href={`/assistir/${ep.id}`}
-                className="group flex gap-3 p-3 transition-colors hover:bg-white/[0.04] sm:gap-5 sm:p-4"
+              <EpisodeLink
+                href={ep.available ? `/assistir/${ep.id}` : undefined}
+                className={cn(
+                  "group flex gap-3 p-3 sm:gap-5 sm:p-4",
+                  ep.available
+                    ? "transition-colors hover:bg-white/[0.04]"
+                    : "opacity-60",
+                )}
               >
                 <span className="font-display hidden w-8 shrink-0 self-center text-center text-xl font-bold text-fg-subtle sm:block">
                   {ep.number}
@@ -74,14 +83,23 @@ export function SeasonEpisodes({
                     imageUrl={ep.thumbnailUrl}
                     variant="backdrop"
                   />
-                  <span className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100">
-                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-black/50 ring-1 ring-white/50">
-                      <Play className="size-4 translate-x-px fill-white text-white" />
+                  {ep.available ? (
+                    <span className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100">
+                      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-black/50 ring-1 ring-white/50">
+                        <Play className="size-4 translate-x-px fill-white text-white" />
+                      </span>
                     </span>
-                  </span>
+                  ) : (
+                    <span className="absolute inset-0 flex items-center justify-center bg-black/50 text-[11px] font-bold tracking-wider text-white uppercase">
+                      Em breve
+                    </span>
+                  )}
                   {pct !== undefined && (
                     <div className="absolute inset-x-0 bottom-0 h-1 bg-white/20">
-                      <div className="h-full bg-brand-500" style={{ width: `${pct}%` }} />
+                      <div
+                        className="h-full bg-brand-500"
+                        style={{ width: `${pct}%` }}
+                      />
                     </div>
                   )}
                 </div>
@@ -92,7 +110,7 @@ export function SeasonEpisodes({
                       {ep.title}
                     </h3>
                     <span className="shrink-0 text-xs font-semibold text-fg-subtle">
-                      {ep.durationMin} min
+                      {ep.available ? `${ep.durationMin} min` : "Em breve"}
                     </span>
                   </div>
                   <p
@@ -104,11 +122,32 @@ export function SeasonEpisodes({
                     {ep.synopsis}
                   </p>
                 </div>
-              </Link>
+              </EpisodeLink>
             </li>
           );
         })}
       </ol>
     </section>
+  );
+}
+
+/** Link quando o episódio está disponível; bloco simples quando ainda não. */
+function EpisodeLink({
+  href,
+  className,
+  children,
+}: {
+  href?: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return href ? (
+    <Link href={href} className={className}>
+      {children}
+    </Link>
+  ) : (
+    <div className={className} aria-disabled="true">
+      {children}
+    </div>
   );
 }
