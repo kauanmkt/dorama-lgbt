@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { ArrowLeft, Clock, Loader2, Lock } from "lucide-react";
+import { ArrowLeft, Clock, Loader2, Lock, Wrench } from "lucide-react";
 import { PlayerShell } from "@/components/player/PlayerShell";
-import { getMyAccess } from "@/lib/auth";
+import { getMyAccess, isAdmin } from "@/lib/auth";
 import { getPublicSetting } from "@/lib/settings";
 import {
   getAllEpisodeIds,
@@ -60,7 +60,23 @@ export default async function WatchPage({ params }: PageProps<"/assistir/[id]">)
 }
 
 async function PlayerGate({ ctx }: { ctx: EpisodeContext }) {
-  const access = await getMyAccess();
+  const [access, maintenance] = await Promise.all([getMyAccess(), getPublicSetting<boolean>("maintenance")]);
+  if (maintenance && !(await isAdmin())) {
+    return (
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-4 px-6 text-center">
+        <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-600/15 text-brand-300">
+          <Wrench className="size-6" />
+        </span>
+        <h1 className="text-2xl font-extrabold">Estamos em manutenção</h1>
+        <p className="max-w-sm text-fg-muted">
+          Estamos melhorando a plataforma. Volte em alguns minutos para continuar assistindo.
+        </p>
+        <Link href="/" className="text-sm font-semibold text-brand-300 hover:text-brand-200">
+          Voltar ao início
+        </Link>
+      </div>
+    );
+  }
   if (!access.hasAccess) {
     const purchaseUrl = await getPublicSetting<string>("purchase_url");
     return (

@@ -1,15 +1,14 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { DoramaEditor, type VideoMap } from "@/components/admin/doramas/DoramaEditor";
-import { getAdminCategories, getAdminDorama, getAdminDoramas, getVideos } from "@/lib/admin";
+import { getAdminCategories, getAdminDorama, getVideos } from "@/lib/admin";
+import { hashString } from "@/lib/format";
 
+export const metadata: Metadata = { title: "Editar dorama" };
+
+// Página sempre montada na hora (com os dados mais recentes do banco).
 export async function generateStaticParams() {
-  return (await getAdminDoramas()).map((d) => ({ slug: d.slug }));
-}
-
-export async function generateMetadata({ params }: PageProps<"/admin/doramas/[slug]">): Promise<Metadata> {
-  const d = await getAdminDorama((await params).slug);
-  return { title: d ? `Editar · ${d.title}` : "Editar dorama" };
+  return [{ slug: "_" }];
 }
 
 export default async function EditDoramaPage({ params }: PageProps<"/admin/doramas/[slug]">) {
@@ -31,5 +30,7 @@ export default async function EditDoramaPage({ params }: PageProps<"/admin/doram
       ]),
   );
 
-  return <DoramaEditor initial={dorama} categories={categories} videos={videoMap} />;
+  // A "chave" muda quando os dados mudam no servidor, recarregando o editor
+  const version = hashString(JSON.stringify([dorama.updatedAt, dorama.seasons, videoMap]));
+  return <DoramaEditor key={version} initial={dorama} categories={categories} videos={videoMap} />;
 }

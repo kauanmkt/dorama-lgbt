@@ -1,8 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
-import { Check, ExternalLink, Save, Send } from "lucide-react";
+import { useMemo, useState, useTransition } from "react";
+import { Check, ExternalLink, Info, Loader2, Save, Send } from "lucide-react";
 import { Artwork } from "@/components/catalog/Artwork";
 import { Badge } from "@/components/ui/Badge";
 import { Button, ButtonLink } from "@/components/ui/Button";
@@ -17,6 +17,8 @@ import {
   useToast,
 } from "@/components/admin/ui";
 import { NOW, slugify } from "@/lib/format";
+import { alterarVisibilidade, salvarDorama } from "@/lib/content-actions";
+import { uploadImage, type ImageKind } from "@/components/admin/image-upload";
 import { cn } from "@/lib/utils";
 import type { AdminDorama, Visibility } from "@/types/admin";
 import type { Category, Dorama } from "@/types/catalog";
@@ -29,7 +31,8 @@ export type VideoMap = Record<string, { name: string; size: number; status: "pro
 
 /**
  * EDITOR DE DORAMA — usado para "Novo dorama" e "Editar dorama".
- * Por enquanto as alterações ficam só na tela; na Etapa 6 passam a salvar no Supabase.
+ * Tudo o que está na tela (dados, categorias, temporadas e episódios) é salvo
+ * de uma vez no banco ao clicar em Salvar/Publicar.
  */
 export function DoramaEditor({
   initial,
@@ -58,6 +61,10 @@ export function DoramaEditor({
   const [featured, setFeatured] = useState(Boolean(initial?.isFeatured));
   const [isNewRelease, setIsNewRelease] = useState(initial ? Boolean(initial.isNew) : true);
   const [visibility, setVisibility] = useState<Visibility>(initial?.visibility ?? "rascunho");
+  const [posterUrl, setPosterUrl] = useState(initial?.posterUrl);
+  const [bannerUrl, setBannerUrl] = useState(initial?.bannerUrl);
+  const [uploading, setUploading] = useState<Record<ImageKind, boolean>>({ poster: false, banner: false });
+  const [saving, startSaving] = useTransition();
   const [seasons, setSeasons] = useState<EditorSeason[]>(
     () =>
       initial?.seasons.map((s) => ({
@@ -69,6 +76,7 @@ export function DoramaEditor({
           synopsis: e.synopsis,
           durationMin: e.durationMin,
           video: videos[e.id],
+          ready: e.available,
         })),
       })) ?? [],
   );
@@ -79,7 +87,7 @@ export function DoramaEditor({
 
   const counts = useMemo(() => {
     const eps = seasons.flatMap((s) => s.episodes);
-    return { episodes: eps.length, withVideo: eps.filter((e) => e.video).length };
+    return { episodes: eps.length, withVideo: eps.filter((e) => e.video || e.ready).length };
   }, [seasons]);
 
   const validate = (publishing: boolean) => {
@@ -89,10 +97,29 @@ export function DoramaEditor({
     if (publishing) {
       if (!synopsis.trim()) e.synopsis = "Escreva a sinopse antes de publicar.";
       if (cats.length === 0) e.categories = "Escolha pelo menos uma categoria.";
-      if (counts.withVideo === 0) e.episodes = "Publique quando houver pelo menos um episódio com vídeo.";
+    }
+    const numbers = seasons.map((s) => s.episodes.map((ep) => ep.number));
+    if (numbers.some((list) => new Set(list).size !== list.length)) {
+      e.episodes = "Há episódios com o mesmo número na mesma temporada.";
     }
     setErrors(e);
     return Object.keys(e).length === 0;
+  };
+
+  const busy = saving || uploading.poster || uploading.banner;
+
+  const pickImage = async (kind: ImageKind, file: File) => {
+    setUploading((u) => ({ ...u, [kind]: true }));
+    try {
+      const url = await uploadImage(file, `doramas/${initial?.id ?? (finalSlug || "novo")}`, kind);
+      if (kind === "poster") setPosterUrl(url);
+      else setBannerUrl(url);
+      toast(kind === "poster" ? "Capa enviada — clique em Salvar para aplicar" : "Banner enviado — clique em Salvar para aplicar");
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Erro ao enviar a imagem", "error");
+    } finally {
+      setUploading((u) => ({ ...u, [kind]: false }));
+    }
   };
 
   const save = (publish: boolean) => {
@@ -100,16 +127,66 @@ export function DoramaEditor({
       toast("Revise os campos destacados", "error");
       return;
     }
-    const next: Visibility = publish ? "publicado" : visibility === "publicado" ? "publicado" : "rascunho";
-    setVisibility(next);
-    toast(
-      publish
-        ? `“${title}” publicado! Já aparece no catálogo.`
-        : next === "publicado"
-          ? "Alterações salvas"
-          : "Rascunho salvo",
-    );
-    if (isNew) router.push("/admin/doramas");
+    const next: Visibility = publish ? "publicado" : visibility;
+    startSaving(async () => {
+      const r = await salvarDorama({
+        id: initial?.id,
+        slug: finalSlug,
+        title,
+        originalTitle,
+        tagline,
+        synopsis,
+        year,
+        country,
+        ageRating,
+        status,
+        visibility: next,
+        isFeatured: featured,
+        isNew: isNewRelease,
+        artSeed,
+        // Endereços locais (blob:) só existem no modo demonstração
+        posterUrl: posterUrl?.startsWith("blob:") ? undefined : posterUrl,
+        bannerUrl: bannerUrl?.startsWith("blob:") ? undefined : bannerUrl,
+        categories: cats,
+        seasons: seasons.map((s) => ({
+          number: s.number,
+          episodes: s.episodes.map(({ id, number, title, synopsis, durationMin }) => ({
+            id,
+            number,
+            title,
+            synopsis,
+            durationMin,
+          })),
+        })),
+      });
+      if (!r.ok) {
+        toast(r.error, "error");
+        return;
+      }
+      setVisibility(next);
+      toast(
+        r.message ??
+          (publish && visibility !== "publicado"
+            ? `“${title}” publicado! Já aparece no catálogo.`
+            : next === "publicado"
+              ? "Alterações salvas — o site já foi atualizado"
+              : "Rascunho salvo"),
+      );
+      const slugNow = r.slug ?? finalSlug;
+      if (isNew || slugNow !== initial?.slug) router.replace(`/admin/doramas/${slugNow}`);
+      else router.refresh();
+    });
+  };
+
+  const unpublish = () => {
+    if (!initial) return setVisibility("rascunho");
+    startSaving(async () => {
+      const r = await alterarVisibilidade(initial.id, "rascunho");
+      if (!r.ok) return toast(r.error, "error");
+      setVisibility("rascunho");
+      toast("Dorama retirado do catálogo");
+      router.refresh();
+    });
   };
 
   return (
@@ -247,7 +324,20 @@ export function DoramaEditor({
           </Panel>
 
           <Panel title="Temporadas e episódios" description="Adicione episódios e envie os vídeos de cada um.">
-            <SeasonsManager seasons={seasons} onChange={setSeasons} />
+            <SeasonsManager
+              seasons={seasons}
+              onChange={(next) => {
+                setSeasons(next);
+                setErrors((e) => ({ ...e, episodes: "" }));
+              }}
+            />
+            {seasons.some((s) => s.episodes.length > 0) && (
+              <p className="mt-3 flex items-start gap-2 text-xs text-fg-subtle">
+                <Info className="mt-0.5 size-3.5 shrink-0" />
+                Episódios sem vídeo aparecem no site como “Em breve”. Lembre de clicar em Salvar depois de
+                mexer nos episódios.
+              </p>
+            )}
             {errors.episodes && <p className="mt-3 text-xs font-semibold text-danger">{errors.episodes}</p>}
           </Panel>
         </div>
@@ -270,20 +360,26 @@ export function DoramaEditor({
               />
             </div>
             <div className="mt-5 grid gap-2">
-              <Button onClick={() => save(true)}>
-                <Send /> {visibility === "publicado" ? "Salvar e manter publicado" : "Publicar"}
-              </Button>
-              <Button variant="outline" onClick={() => save(false)}>
-                <Save /> {visibility === "publicado" ? "Salvar alterações" : "Salvar rascunho"}
-              </Button>
+              {visibility === "publicado" ? (
+                <Button onClick={() => save(false)} disabled={busy}>
+                  {saving ? <Loader2 className="animate-spin" /> : <Save />} Salvar alterações
+                </Button>
+              ) : (
+                <>
+                  <Button onClick={() => save(true)} disabled={busy}>
+                    {saving ? <Loader2 className="animate-spin" /> : <Send />} Publicar
+                  </Button>
+                  <Button variant="outline" onClick={() => save(false)} disabled={busy}>
+                    <Save /> Salvar rascunho
+                  </Button>
+                </>
+              )}
               {visibility === "publicado" && (
                 <button
                   type="button"
-                  onClick={() => {
-                    setVisibility("rascunho");
-                    toast("Dorama retirado do catálogo");
-                  }}
-                  className="mt-1 text-xs font-semibold text-fg-subtle hover:text-danger"
+                  onClick={unpublish}
+                  disabled={busy}
+                  className="mt-1 text-xs font-semibold text-fg-subtle hover:text-danger disabled:opacity-50"
                 >
                   Despublicar (voltar para rascunho)
                 </button>
@@ -295,16 +391,20 @@ export function DoramaEditor({
             <div className="grid grid-cols-[2fr_3fr] gap-4 lg:grid-cols-1">
               <ImageDrop
                 label="Capa (vertical)"
-                hint="Recomendado: 600×900"
-                preview={initial && <Artwork seed={artSeed} title={title} imageUrl={initial.posterUrl} />}
+                hint="Recomendado: 800×1200"
+                onFile={(f) => pickImage("poster", f)}
+                busy={uploading.poster}
+                preview={(initial || posterUrl) && <Artwork seed={artSeed} title={title} imageUrl={posterUrl} />}
               />
               <ImageDrop
                 label="Banner (horizontal)"
                 aspect="banner"
                 hint="Recomendado: 1920×1080"
+                onFile={(f) => pickImage("banner", f)}
+                busy={uploading.banner}
                 preview={
-                  initial && (
-                    <Artwork seed={artSeed} title={title} imageUrl={initial.bannerUrl} variant="backdrop" />
+                  (initial || bannerUrl) && (
+                    <Artwork seed={artSeed} title={title} imageUrl={bannerUrl} variant="backdrop" />
                   )
                 }
               />

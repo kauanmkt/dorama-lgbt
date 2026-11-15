@@ -4,7 +4,6 @@ import { Loader2 } from "lucide-react";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { ToastProvider } from "@/components/admin/ui";
 import { requireAdmin } from "@/lib/auth";
-import { isSupabaseConfigured } from "@/lib/supabase/config";
 
 export const metadata: Metadata = {
   title: { default: "Painel", template: "%s · Painel Dorama LGBT" },
@@ -38,13 +37,6 @@ async function AdminGate({ children }: { children: React.ReactNode }) {
   await requireAdmin();
   return (
     <>
-      {isSupabaseConfigured && (
-        <p className="mb-6 rounded-xl bg-warning/10 px-4 py-3 text-sm text-warning ring-1 ring-warning/25">
-          <strong>Conexão parcial:</strong> <strong>Usuários</strong> e <strong>Planos</strong> já
-          salvam no banco. Doramas, vídeos, categorias, configurações e os números do dashboard ainda
-          são exemplo (Etapas 6 e 7).
-        </p>
-      )}
       {children}
     </>
   );

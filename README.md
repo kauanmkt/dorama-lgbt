@@ -15,6 +15,8 @@ Arquivos em `supabase/`:
 | `remover-demo.sql` | Apaga os doramas e planos de demonstração | Antes de lançar |
 | `migrations/0002_login_por_email.sql` | Ajustes para o login só com e-mail | **Uma vez**, depois da 0001 |
 | `migrations/0003_restringir_funcoes.sql` | Funções de conta só para quem está logado | **Uma vez**, depois da 0002 |
+| `migrations/0004_cadastro_pelo_painel.sql` | Funções que salvam dorama/temporadas/episódios de uma vez, destaques e ordem das categorias | **Uma vez**, depois da 0003 |
+| `migrations/0005_imagens.sql` | Pasta pública `imagens` no Storage (capas e banners); só admin envia | **Uma vez**, depois da 0004 |
 | `tornar-admin.sql` | Transforma uma conta em administradora | Depois de criar sua conta de admin |
 
 **Como aplicar:** Supabase → **SQL Editor** → **New query** → colar o conteúdo → **Run**.
@@ -192,7 +194,7 @@ scripts/                    → Ferramentas (gerador de ícones)
 - [x] 3. Frontend do painel administrativo
 - [x] 4. Integração com Supabase
 - [x] 5. Autenticação e permissões
-- [ ] 6. Cadastro de doramas e episódios
+- [x] 6. Cadastro de doramas e episódios (painel salva no banco; site atualiza na hora)
 - [ ] 7. Integração com Cloudflare R2
 - [ ] 8. Player e progresso de reprodução
 - [ ] 9. Usuários, planos e telas simultâneas

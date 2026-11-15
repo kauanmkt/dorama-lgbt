@@ -33,7 +33,7 @@ type EpisodeRow = {
   thumbnail_url: string | null;
   video_ready: boolean;
 };
-type DoramaRow = {
+export type DoramaRow = {
   id: string;
   slug: string;
   title: string;
@@ -55,14 +55,14 @@ type DoramaRow = {
   seasons: { number: number; title: string | null; episodes: EpisodeRow[] }[];
 };
 
-const DORAMA_SELECT = `
+export const DORAMA_SELECT = `
   id, slug, title, original_title, tagline, synopsis, year, country, age_rating, status,
   is_featured, featured_position, is_new, popularity, art_seed, poster_url, banner_url,
   dorama_categories ( categories ( slug ) ),
   seasons ( number, title, episodes ( id, number, title, synopsis, duration_min, thumbnail_url, video_ready ) )
 `;
 
-function mapDorama(row: DoramaRow): Dorama {
+export function mapDorama(row: DoramaRow): Dorama {
   return {
     id: row.id,
     slug: row.slug,

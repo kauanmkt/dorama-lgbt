@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { VideosManager, type EpisodeRow } from "@/components/admin/VideosManager";
 import { getAdminDoramas, getVideos } from "@/lib/admin";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
 
 export const metadata: Metadata = { title: "Vídeos" };
 
@@ -34,5 +35,15 @@ export default async function AdminVideosPage() {
   // Episódios sem vídeo primeiro
   rows.sort((a, b) => Number(Boolean(a.video)) - Number(Boolean(b.video)));
 
-  return <VideosManager initial={rows} />;
+  return (
+    <>
+      {isSupabaseConfigured && (
+        <p className="mb-6 rounded-xl bg-warning/10 px-4 py-3 text-sm text-warning ring-1 ring-warning/25">
+          <strong>Em preparação:</strong> a lista de episódios já é a real, mas o envio de vídeos ainda é
+          simulado — ele passa a gravar no Cloudflare R2 na próxima etapa.
+        </p>
+      )}
+      <VideosManager initial={rows} />
+    </>
+  );
 }

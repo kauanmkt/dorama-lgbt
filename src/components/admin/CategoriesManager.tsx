@@ -5,6 +5,7 @@ import { ArrowDown, ArrowUp, FolderTree, Pencil, Plus, Trash2 } from "lucide-rea
 import { Button } from "@/components/ui/Button";
 import { AdminHeader, EmptyState, Modal, TextArea, TextInput, useToast } from "@/components/admin/ui";
 import { slugify } from "@/lib/format";
+import { excluirCategoria, ordenarCategorias, salvarCategoria } from "@/lib/content-actions";
 import type { Category } from "@/types/catalog";
 
 type Row = Category & { count: number };
@@ -19,20 +20,42 @@ export function CategoriesManager({ initial }: { initial: Row[] }) {
   const [editing, setEditing] = useState<Row | "new" | null>(null);
   const [toDelete, setToDelete] = useState<Row | null>(null);
 
-  const move = (i: number, dir: -1 | 1) => {
+  const move = async (i: number, dir: -1 | 1) => {
     const j = i + dir;
     if (j < 0 || j >= rows.length) return;
+    const before = rows;
     const next = [...rows];
     [next[i], next[j]] = [next[j], next[i]];
     setRows(next);
+    const r = await ordenarCategorias(next.map((c) => c.slug));
+    if (!r.ok) {
+      setRows(before);
+      toast(r.error, "error");
+    }
   };
 
-  const save = (c: Row, previousSlug?: string) => {
+  /** Devolve a mensagem de erro (para mostrar no formulário) ou nada se deu certo. */
+  const save = async (c: Row, previousSlug?: string): Promise<string | undefined> => {
+    const r = await salvarCategoria({
+      slug: c.slug,
+      name: c.name,
+      description: c.description,
+      isNew: !previousSlug,
+    });
+    if (!r.ok) return r.error;
     setRows((list) =>
       previousSlug ? list.map((x) => (x.slug === previousSlug ? c : x)) : [...list, c],
     );
-    toast(previousSlug ? "Categoria atualizada" : `Categoria “${c.name}” criada`);
+    toast(r.message ?? (previousSlug ? "Categoria atualizada" : `Categoria “${c.name}” criada`));
     setEditing(null);
+  };
+
+  const remove = async (c: Row) => {
+    setToDelete(null);
+    const r = await excluirCategoria(c.slug);
+    if (!r.ok) return toast(r.error, "error");
+    setRows((l) => l.filter((x) => x.slug !== c.slug));
+    toast(r.message ?? "Categoria excluída");
   };
 
   return (
@@ -128,11 +151,7 @@ export function CategoriesManager({ initial }: { initial: Row[] }) {
             <Button
               variant="danger"
               size="sm"
-              onClick={() => {
-                setRows((l) => l.filter((x) => x.slug !== toDelete?.slug));
-                toast("Categoria excluída");
-                setToDelete(null);
-              }}
+              onClick={() => toDelete && remove(toDelete)}
             >
               <Trash2 /> Excluir
             </Button>
@@ -158,17 +177,24 @@ function CategoryModal({
   initial?: Row;
   taken: string[];
   onClose: () => void;
-  onSave: (c: Row, previousSlug?: string) => void;
+  onSave: (c: Row, previousSlug?: string) => Promise<string | undefined>;
 }) {
   const [name, setName] = useState(initial?.name ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
   const slug = initial?.slug ?? slugify(name);
 
-  const submit = () => {
+  const submit = async () => {
     if (!name.trim()) return setError("Dê um nome à categoria.");
     if (!initial && taken.includes(slug)) return setError("Já existe uma categoria com esse nome.");
-    onSave({ slug, name: name.trim(), description: description.trim(), count: initial?.count ?? 0 }, initial?.slug);
+    setBusy(true);
+    const err = await onSave(
+      { slug, name: name.trim(), description: description.trim(), count: initial?.count ?? 0 },
+      initial?.slug,
+    );
+    setBusy(false);
+    if (err) setError(err);
   };
 
   return (
@@ -182,8 +208,8 @@ function CategoryModal({
           <Button variant="outline" size="sm" onClick={onClose}>
             Cancelar
           </Button>
-          <Button size="sm" onClick={submit}>
-            Salvar
+          <Button size="sm" onClick={submit} disabled={busy}>
+            {busy ? "Salvando…" : "Salvar"}
           </Button>
         </>
       }

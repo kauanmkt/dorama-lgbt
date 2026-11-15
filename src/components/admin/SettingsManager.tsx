@@ -1,30 +1,52 @@
 "use client";
 
-import { useState } from "react";
-import { ArrowDown, ArrowUp, Save, Star, X } from "lucide-react";
+import { useState, useTransition } from "react";
+import { ArrowDown, ArrowUp, Loader2, Save, Star, X } from "lucide-react";
 import { Artwork } from "@/components/catalog/Artwork";
 import { Button } from "@/components/ui/Button";
 import { AdminHeader, Panel, SelectInput, TextInput, Toggle, useToast } from "@/components/admin/ui";
+import { salvarConfiguracoes, type SettingsInput } from "@/lib/content-actions";
 
-type FeaturedItem = { slug: string; title: string; artSeed: number; posterUrl?: string };
+type FeaturedItem = { id: string; slug: string; title: string; artSeed: number; posterUrl?: string };
+
+export type SettingsValues = Omit<SettingsInput, "featuredIds">;
 
 /** CONFIGURAÇÕES — dados da plataforma, destaques da home e regras de acesso. */
 export function SettingsManager({
+  values,
   featured: initialFeatured,
   candidates,
 }: {
+  values: SettingsValues;
   featured: FeaturedItem[];
   candidates: FeaturedItem[];
 }) {
   const toast = useToast();
-  const [name, setName] = useState("Dorama LGBT");
-  const [supportEmail, setSupportEmail] = useState("suporte@doramalgbt.com");
-  const [announcement, setAnnouncement] = useState("");
-  const [signupOpen, setSignupOpen] = useState(true);
-  const [maintenance, setMaintenance] = useState(false);
-  const [autoplayNext, setAutoplayNext] = useState(true);
-  const [rotation, setRotation] = useState("8");
+  const [name, setName] = useState(values.platformName);
+  const [supportEmail, setSupportEmail] = useState(values.supportEmail);
+  const [announcement, setAnnouncement] = useState(values.announcement);
+  const [purchaseUrl, setPurchaseUrl] = useState(values.purchaseUrl);
+  const [maintenance, setMaintenance] = useState(values.maintenance);
+  const [autoplayNext, setAutoplayNext] = useState(values.autoplayNext);
+  const [rotation, setRotation] = useState(String(values.heroRotation));
   const [featured, setFeatured] = useState(initialFeatured);
+  const [saving, startSaving] = useTransition();
+
+  const save = () =>
+    startSaving(async () => {
+      const r = await salvarConfiguracoes({
+        platformName: name,
+        supportEmail,
+        announcement,
+        purchaseUrl,
+        maintenance,
+        autoplayNext,
+        heroRotation: Number(rotation),
+        featuredIds: featured.map((f) => f.id),
+      });
+      if (r.ok) toast(r.message ?? "Configurações salvas");
+      else toast(r.error, "error");
+    });
 
   const move = (i: number, dir: -1 | 1) => {
     const j = i + dir;
@@ -42,8 +64,8 @@ export function SettingsManager({
         title="Configurações"
         description="Ajustes gerais da plataforma."
         actions={
-          <Button size="sm" onClick={() => toast("Configurações salvas")}>
-            <Save /> Salvar
+          <Button size="sm" onClick={save} disabled={saving}>
+            {saving ? <Loader2 className="animate-spin" /> : <Save />} Salvar
           </Button>
         }
       />
@@ -60,22 +82,25 @@ export function SettingsManager({
               hint="Aparece na tela de ajuda e nos e-mails enviados aos clientes"
             />
             <TextInput
-              label="Aviso no topo do app (opcional)"
+              label="Aviso para os clientes (opcional)"
               value={announcement}
               onChange={(e) => setAnnouncement(e.target.value)}
               placeholder="Ex.: Novo episódio de Amor em Seul toda sexta!"
+              maxLength={160}
+            />
+            <TextInput
+              label="Link da página de compra"
+              type="url"
+              value={purchaseUrl}
+              onChange={(e) => setPurchaseUrl(e.target.value)}
+              placeholder="https://pay.suaplataforma.com/..."
+              hint="Aparece para quem tenta entrar sem ter um plano ativo"
             />
           </div>
         </Panel>
 
         <Panel title="Acesso e reprodução">
           <div className="space-y-5">
-            <Toggle
-              checked={signupOpen}
-              onChange={setSignupOpen}
-              label="Cadastro aberto"
-              description="Permite que novas pessoas criem conta"
-            />
             <Toggle
               checked={autoplayNext}
               onChange={setAutoplayNext}
@@ -86,7 +111,7 @@ export function SettingsManager({
               checked={maintenance}
               onChange={setMaintenance}
               label="Modo manutenção"
-              description="Clientes veem um aviso; o painel continua funcionando"
+              description="Quem tentar assistir vê um aviso; o painel continua funcionando"
             />
             {maintenance && (
               <p className="rounded-xl bg-warning/10 px-3 py-2 text-xs font-semibold text-warning ring-1 ring-warning/25">

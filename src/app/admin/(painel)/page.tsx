@@ -16,13 +16,17 @@ import { Artwork } from "@/components/catalog/Artwork";
 import { Badge } from "@/components/ui/Badge";
 import { ButtonLink } from "@/components/ui/Button";
 import { getAdminDoramas, getDashboardStats, getUsers } from "@/lib/admin";
-import { accessStatus, formatBytes, formatRelative, statusLabel, statusTone } from "@/lib/format";
+import { NOW, accessStatus, formatBytes, formatRelative, statusLabel, statusTone } from "@/lib/format";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 /** DASHBOARD — visão geral da plataforma. */
 export default async function AdminDashboardPage() {
-  const [stats, doramas, users] = await Promise.all([getDashboardStats(), getAdminDoramas(), getUsers()]);
+  const [doramas, users] = await Promise.all([getAdminDoramas(), getUsers()]);
+  // Data de referência: a real (com banco) ou a fixa da demonstração
+  const now = isSupabaseConfigured ? new Date() : NOW;
+  const stats = await getDashboardStats(now.getTime());
 
   const recentContent = [...doramas].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 5);
   const recentUsers = [...users].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 5);
@@ -31,7 +35,7 @@ export default async function AdminDashboardPage() {
     { label: "Usuários", value: stats.users, sub: `${stats.activeUsers} com acesso ativo`, icon: Users, href: "/admin/usuarios" },
     { label: "Doramas", value: stats.doramas, sub: `${stats.published} publicados · ${stats.drafts} rascunhos`, icon: Clapperboard, href: "/admin/doramas" },
     { label: "Episódios", value: stats.episodes, sub: `${stats.episodesWithoutVideo} sem vídeo`, icon: Film, href: "/admin/videos" },
-    { label: "Armazenamento", value: formatBytes(stats.storageBytes), sub: "Vídeos no Cloudflare R2", icon: HardDrive, href: "/admin/videos" },
+    { label: "Armazenamento", value: formatBytes(stats.storageBytes), sub: stats.storageBytes ? "Vídeos no Cloudflare R2" : "Envio de vídeos na Etapa 7", icon: HardDrive, href: "/admin/videos" },
   ];
 
   const alerts = [
@@ -127,7 +131,7 @@ export default async function AdminDashboardPage() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-bold">{d.title}</p>
-                    <p className="text-xs text-fg-subtle">{formatRelative(d.updatedAt)}</p>
+                    <p className="text-xs text-fg-subtle">{formatRelative(d.updatedAt, now)}</p>
                   </div>
                   <Badge tone={d.visibility === "publicado" ? "success" : "warning"}>
                     {d.visibility === "publicado" ? "Publicado" : "Rascunho"}
@@ -153,7 +157,7 @@ export default async function AdminDashboardPage() {
           </header>
           <ul className="divide-y divide-white/5">
             {recentUsers.map((u) => {
-              const st = accessStatus(u);
+              const st = accessStatus(u, now);
               return (
                 <li key={u.id} className="flex items-center gap-3 px-5 py-3">
                   <span className="font-display flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ink-700 text-sm font-bold text-brand-200">

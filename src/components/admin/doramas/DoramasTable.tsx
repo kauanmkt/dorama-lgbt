@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { AdminHeader, EmptyState, Modal, SearchInput, Segmented, useToast } from "@/components/admin/ui";
 import { formatRelative } from "@/lib/format";
+import { alterarDestaque, alterarVisibilidade, excluirDorama } from "@/lib/content-actions";
 import type { AdminDorama, Visibility } from "@/types/admin";
 import type { Category } from "@/types/catalog";
 
@@ -16,7 +17,16 @@ type Filter = "todos" | Visibility;
 const normalize = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
 /** Lista de doramas do painel, com busca, filtro e ações rápidas. */
-export function DoramasTable({ initial, categories }: { initial: AdminDorama[]; categories: Category[] }) {
+export function DoramasTable({
+  initial,
+  categories,
+  now: nowIso,
+}: {
+  initial: AdminDorama[];
+  categories: Category[];
+  now: string;
+}) {
+  const now = new Date(nowIso);
   const toast = useToast();
   const [items, setItems] = useState(initial);
   const [query, setQuery] = useState("");
@@ -34,22 +44,49 @@ export function DoramasTable({ initial, categories }: { initial: AdminDorama[]; 
 
   const count = (v: Visibility) => items.filter((d) => d.visibility === v).length;
 
+  /** Muda na tela na hora e salva no banco; se falhar, desfaz. */
+  const optimistic = async (
+    change: (list: AdminDorama[]) => AdminDorama[],
+    action: () => Promise<{ ok: true; message?: string } | { ok: false; error: string }>,
+    success: string,
+  ) => {
+    const before = items;
+    setItems(change);
+    const r = await action();
+    if (!r.ok) {
+      setItems(before);
+      toast(r.error, "error");
+      return;
+    }
+    toast(r.message ?? success);
+  };
+
   const toggleVisibility = (d: AdminDorama) => {
     const next: Visibility = d.visibility === "publicado" ? "rascunho" : "publicado";
-    setItems((list) => list.map((x) => (x.slug === d.slug ? { ...x, visibility: next } : x)));
-    toast(next === "publicado" ? `“${d.title}” publicado no catálogo` : `“${d.title}” voltou para rascunho`);
+    optimistic(
+      (list) => list.map((x) => (x.id === d.id ? { ...x, visibility: next } : x)),
+      () => alterarVisibilidade(d.id, next),
+      next === "publicado" ? `“${d.title}” publicado no catálogo` : `“${d.title}” voltou para rascunho`,
+    );
   };
 
   const toggleFeatured = (d: AdminDorama) => {
-    setItems((list) => list.map((x) => (x.slug === d.slug ? { ...x, isFeatured: !x.isFeatured } : x)));
-    toast(d.isFeatured ? `“${d.title}” saiu dos destaques` : `“${d.title}” agora está em destaque`);
+    optimistic(
+      (list) => list.map((x) => (x.id === d.id ? { ...x, isFeatured: !x.isFeatured } : x)),
+      () => alterarDestaque(d.id, !d.isFeatured),
+      d.isFeatured ? `“${d.title}” saiu dos destaques` : `“${d.title}” agora está em destaque`,
+    );
   };
 
   const confirmDelete = () => {
     if (!toDelete) return;
-    setItems((list) => list.filter((x) => x.slug !== toDelete.slug));
-    toast(`“${toDelete.title}” excluído`);
+    const d = toDelete;
     setToDelete(null);
+    optimistic(
+      (list) => list.filter((x) => x.id !== d.id),
+      () => excluirDorama(d.id),
+      `“${d.title}” excluído`,
+    );
   };
 
   return (
@@ -120,7 +157,7 @@ export function DoramasTable({ initial, categories }: { initial: AdminDorama[]; 
                           {d.categories.map(catName).join(" · ") || "Sem categoria"}
                         </p>
                         <p className="mt-1 text-xs text-fg-muted md:hidden">
-                          {d.seasons.length} temp. · {eps} ep. · {formatRelative(d.updatedAt)}
+                          {d.seasons.length} temp. · {eps} ep. · {formatRelative(d.updatedAt, now)}
                         </p>
                       </div>
                     </Link>
@@ -133,7 +170,7 @@ export function DoramasTable({ initial, categories }: { initial: AdminDorama[]; 
                         {d.visibility === "publicado" ? "Publicado" : "Rascunho"}
                       </Badge>
                     </span>
-                    <span className="hidden text-sm text-fg-muted md:block">{formatRelative(d.updatedAt)}</span>
+                    <span className="hidden text-sm text-fg-muted md:block">{formatRelative(d.updatedAt, now)}</span>
 
                     <div className="col-span-2 flex items-center gap-1 border-t border-white/5 pt-2 md:col-span-1 md:justify-end md:border-0 md:pt-0">
                       <IconAction label="Editar" href={`/admin/doramas/${d.slug}`}>

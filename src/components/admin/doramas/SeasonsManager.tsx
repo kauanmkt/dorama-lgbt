@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, Film, Loader2, Pencil, Plus, Trash2, UploadCloud } from "lucide-react";
+import { ChevronDown, Film, Info, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { EmptyState, Modal, TextArea, TextInput, useToast } from "@/components/admin/ui";
-import { VideoPicker, type PickedVideo } from "@/components/admin/VideoPicker";
+import type { PickedVideo } from "@/components/admin/VideoPicker";
 import { cn } from "@/lib/utils";
 
 export type EditorEpisode = {
@@ -15,6 +15,8 @@ export type EditorEpisode = {
   synopsis: string;
   durationMin: number;
   video?: PickedVideo & { status: "pronto" | "processando" };
+  /** Episódio já liberado para assistir (vídeo pronto) */
+  ready?: boolean;
 };
 
 export type EditorSeason = { number: number; episodes: EditorEpisode[] };
@@ -48,7 +50,7 @@ export function SeasonsManager({
         return { ...s, episodes: episodes.sort((a, b) => a.number - b.number) };
       }),
     );
-    toast(`Episódio ${ep.number} salvo`);
+    toast(`Episódio ${ep.number} pronto — clique em Salvar para gravar`);
   };
 
   const deleteEpisode = (seasonNumber: number, id: string) => {
@@ -57,7 +59,7 @@ export function SeasonsManager({
         s.number === seasonNumber ? { ...s, episodes: s.episodes.filter((e) => e.id !== id) } : s,
       ),
     );
-    toast("Episódio excluído");
+    toast("Episódio removido — clique em Salvar para confirmar");
   };
 
   return (
@@ -77,7 +79,7 @@ export function SeasonsManager({
         <div className="space-y-3">
           {seasons.map((s) => {
             const isOpen = open === s.number;
-            const missing = s.episodes.filter((e) => !e.video).length;
+            const missing = s.episodes.filter((e) => !e.video && !e.ready).length;
             return (
               <div key={s.number} className="overflow-hidden rounded-xl border border-line bg-ink-850/60">
                 <button
@@ -113,19 +115,10 @@ export function SeasonsManager({
                                     <Loader2 className="size-3 animate-spin" /> Processando
                                   </span>
                                 )}
-                                {!ep.video && <span className="text-warning">Sem vídeo</span>}
+                                {!ep.video && ep.ready && <span className="text-success">Liberado</span>}
+                                {!ep.video && !ep.ready && <span className="text-warning">Sem vídeo</span>}
                               </p>
                             </div>
-                            {!ep.video && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="hidden sm:inline-flex"
-                                onClick={() => setEditing({ season: s.number, episode: ep })}
-                              >
-                                <UploadCloud /> Enviar vídeo
-                              </Button>
-                            )}
                             <button
                               type="button"
                               aria-label="Editar episódio"
@@ -198,7 +191,7 @@ export function SeasonsManager({
               size="sm"
               onClick={() => {
                 onChange(seasons.filter((s) => s.number !== removeSeason));
-                toast(`Temporada ${removeSeason} excluída`);
+                toast(`Temporada ${removeSeason} removida — clique em Salvar para confirmar`);
                 setRemoveSeason(null);
               }}
             >
@@ -232,7 +225,6 @@ function EpisodeModal({
   const [title, setTitle] = useState(episode?.title ?? "");
   const [synopsis, setSynopsis] = useState(episode?.synopsis ?? "");
   const [duration, setDuration] = useState(episode?.durationMin ?? 45);
-  const [video, setVideo] = useState(episode?.video);
   const [error, setError] = useState("");
 
   const save = () => {
@@ -243,7 +235,8 @@ function EpisodeModal({
       title: title.trim(),
       synopsis: synopsis.trim(),
       durationMin: duration,
-      video,
+      video: episode?.video,
+      ready: episode?.ready,
     });
   };
 
@@ -300,10 +293,12 @@ function EpisodeModal({
         wrapperClassName="mt-4"
         rows={3}
       />
-      <div className="mt-4">
-        <p className="mb-1.5 text-sm font-semibold text-fg-muted">Vídeo</p>
-        <VideoPicker current={video} onUploaded={(v) => setVideo({ ...v, status: "pronto" })} />
-      </div>
+      <p className="mt-4 flex items-start gap-2 rounded-xl bg-white/[0.04] px-3 py-2.5 text-xs text-fg-muted ring-1 ring-white/10">
+        <Info className="mt-0.5 size-3.5 shrink-0 text-brand-300" />
+        {episode?.video || episode?.ready
+          ? "Este episódio já tem vídeo liberado."
+          : "O envio do vídeo chega na próxima etapa (Cloudflare R2). Até lá, o episódio aparece como “Em breve”."}
+      </p>
     </Modal>
   );
 }

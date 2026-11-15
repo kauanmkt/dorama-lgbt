@@ -1,13 +1,15 @@
 /**
  * PONTO ÚNICO DE ACESSO AOS DADOS DO PAINEL.
- * Hoje lê os dados fictícios; na Etapa 4 passa a consultar o Supabase
- * (sempre verificando no servidor se quem pede é administrador).
+ * Com o Supabase configurado, tudo vem do banco — sempre conferindo no
+ * servidor se quem pede é administrador. Sem configuração, usa os dados
+ * fictícios (para desenvolver o visual).
  */
 import { mockCategories, mockDoramas } from "@/lib/mock/catalog";
 import { NOW } from "@/lib/format";
 import { mockPlans, mockUsers, mockVideos } from "@/lib/mock/admin";
 import { requireAdmin } from "@/lib/auth";
 import { accessStatus } from "@/lib/format";
+import { DORAMA_SELECT, mapDorama, type DoramaRow } from "@/lib/catalog";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createSessionClient } from "@/lib/supabase/server";
 import type { AdminDorama, AdminUser, Plan, VideoAsset } from "@/types/admin";
@@ -50,27 +52,85 @@ const drafts: AdminDorama[] = [
   },
 ];
 
+async function adminClient() {
+  await requireAdmin();
+  return createSessionClient();
+}
+
+type AdminDoramaRow = DoramaRow & { visibility: AdminDorama["visibility"]; updated_at: string };
+
+/** Todos os doramas (publicados e rascunhos), do mais recente para o mais antigo. */
 export async function getAdminDoramas(): Promise<AdminDorama[]> {
-  const published = mockDoramas.map(
-    (d, i): AdminDorama => ({
-      ...d,
-      visibility: "publicado",
-      updatedAt: new Date(NOW.getTime() - 86_400_000 * (i * 2 + 1)).toISOString(),
-    }),
-  );
-  return [...drafts, ...published];
-}
-
-export async function getAdminDorama(slug: string) {
-  return (await getAdminDoramas()).find((d) => d.slug === slug);
-}
-
-export async function getAdminCategories(): Promise<(Category & { count: number })[]> {
-  const all = await getAdminDoramas();
-  return mockCategories.map((c) => ({
-    ...c,
-    count: all.filter((d) => d.categories.includes(c.slug)).length,
+  if (!isSupabaseConfigured) {
+    const published = mockDoramas.map(
+      (d, i): AdminDorama => ({
+        ...d,
+        visibility: "publicado",
+        updatedAt: new Date(NOW.getTime() - 86_400_000 * (i * 2 + 1)).toISOString(),
+      }),
+    );
+    return [...drafts, ...published];
+  }
+  const supabase = await adminClient();
+  const { data, error } = await supabase
+    .from("doramas")
+    .select(`${DORAMA_SELECT}, visibility, updated_at`)
+    .order("updated_at", { ascending: false });
+  if (error) throw new Error(`Erro ao ler doramas: ${error.message}`);
+  return (data as unknown as AdminDoramaRow[]).map((row) => ({
+    ...mapDorama(row),
+    visibility: row.visibility,
+    updatedAt: row.updated_at,
   }));
+}
+
+export async function getAdminDorama(slug: string): Promise<AdminDorama | undefined> {
+  if (!isSupabaseConfigured) return (await getAdminDoramas()).find((d) => d.slug === slug);
+  const supabase = await adminClient();
+  const { data, error } = await supabase
+    .from("doramas")
+    .select(`${DORAMA_SELECT}, visibility, updated_at`)
+    .eq("slug", slug)
+    .maybeSingle();
+  if (error) throw new Error(`Erro ao ler dorama: ${error.message}`);
+  if (!data) return undefined;
+  const row = data as unknown as AdminDoramaRow;
+  return { ...mapDorama(row), visibility: row.visibility, updatedAt: row.updated_at };
+}
+
+export type AdminCategory = Category & { count: number };
+
+/** Categorias na ordem das fileiras, com quantos doramas usam cada uma. */
+export async function getAdminCategories(): Promise<AdminCategory[]> {
+  if (!isSupabaseConfigured) {
+    const all = await getAdminDoramas();
+    return mockCategories.map((c) => ({
+      ...c,
+      count: all.filter((d) => d.categories.includes(c.slug)).length,
+    }));
+  }
+  const supabase = await adminClient();
+  const { data, error } = await supabase
+    .from("categories")
+    .select("slug, name, description, dorama_categories(count)")
+    .order("position")
+    .order("name");
+  if (error) throw new Error(`Erro ao ler categorias: ${error.message}`);
+  return data.map((c) => ({
+    slug: c.slug,
+    name: c.name,
+    description: c.description ?? undefined,
+    count: (c.dorama_categories as unknown as { count: number }[])[0]?.count ?? 0,
+  }));
+}
+
+/** Todas as configurações (inclusive as não públicas), como objeto chave → valor. */
+export async function getAdminSettings(): Promise<Record<string, unknown>> {
+  if (!isSupabaseConfigured) return {};
+  const supabase = await adminClient();
+  const { data, error } = await supabase.from("settings").select("key, value");
+  if (error) throw new Error(`Erro ao ler configurações: ${error.message}`);
+  return Object.fromEntries(data.map((r) => [r.key, r.value]));
 }
 
 // ===== Planos e usuários: já leem do banco quando o Supabase está configurado =====
@@ -151,28 +211,57 @@ export async function getUsers(): Promise<AdminUser[]> {
   });
 }
 
+type VideoRow = {
+  id: string;
+  episode_id: string;
+  storage_key: string;
+  file_name: string;
+  size_bytes: number;
+  duration_sec: number | null;
+  format: VideoAsset["format"];
+  status: VideoAsset["status"];
+  uploaded_at: string | null;
+  created_at: string;
+};
+
 export async function getVideos(): Promise<VideoAsset[]> {
-  return mockVideos;
+  if (!isSupabaseConfigured) return mockVideos;
+  const supabase = await adminClient();
+  const { data, error } = await supabase
+    .from("videos")
+    .select("id, episode_id, storage_key, file_name, size_bytes, duration_sec, format, status, uploaded_at, created_at");
+  if (error) throw new Error(`Erro ao ler vídeos: ${error.message}`);
+  return (data as VideoRow[]).map((v) => ({
+    id: v.id,
+    episodeId: v.episode_id,
+    key: v.storage_key,
+    fileName: v.file_name,
+    sizeBytes: Number(v.size_bytes),
+    durationSec: v.duration_sec ?? undefined,
+    format: v.format,
+    status: v.status,
+    uploadedAt: v.uploaded_at ?? v.created_at,
+  }));
 }
 
-export async function getDashboardStats() {
+export async function getDashboardStats(now: number) {
   const [doramas, users, videos] = await Promise.all([getAdminDoramas(), getUsers(), getVideos()]);
   const episodes = doramas.flatMap((d) => d.seasons.flatMap((s) => s.episodes));
-  const since = NOW.getTime() - 30 * 86_400_000;
+  const since = now - 30 * 86_400_000;
   return {
     users: users.length,
-    activeUsers: users.filter((u) => accessStatus(u) === "ativo").length,
+    activeUsers: users.filter((u) => accessStatus(u, new Date(now)) === "ativo").length,
     newUsers: users.filter((u) => new Date(u.createdAt).getTime() >= since).length,
     doramas: doramas.length,
     published: doramas.filter((d) => d.visibility === "publicado").length,
     drafts: doramas.filter((d) => d.visibility === "rascunho").length,
     episodes: episodes.length,
-    episodesWithoutVideo: episodes.filter((e) => !videos.some((v) => v.episodeId === e.id)).length,
+    episodesWithoutVideo: episodes.filter((e) => !e.available && !videos.some((v) => v.episodeId === e.id)).length,
     storageBytes: videos.reduce((n, v) => n + v.sizeBytes, 0),
     expiringSoon: users.filter((u) => {
       if (!u.expiresAt || u.lifetime) return false;
       const t = new Date(u.expiresAt).getTime();
-      return t >= NOW.getTime() && t <= NOW.getTime() + 7 * 86_400_000;
+      return t >= now && t <= now + 7 * 86_400_000;
     }).length,
   };
 }

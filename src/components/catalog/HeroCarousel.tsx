@@ -25,18 +25,19 @@ export type HeroItem = {
   inMyList: boolean;
 };
 
-const INTERVAL = 8000;
-
-/** Banner principal: alterna entre os doramas marcados como destaque no painel. */
-export function HeroCarousel({ items }: { items: HeroItem[] }) {
+/**
+ * Banner principal: alterna entre os doramas marcados como destaque no painel.
+ * `interval` (segundos) vem das Configurações; 0 = não troca sozinho.
+ */
+export function HeroCarousel({ items, interval = 8 }: { items: HeroItem[]; interval?: number }) {
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
 
   useEffect(() => {
-    if (paused || items.length < 2) return;
-    const t = setTimeout(() => setIndex((i) => (i + 1) % items.length), INTERVAL);
+    if (paused || items.length < 2 || interval <= 0) return;
+    const t = setTimeout(() => setIndex((i) => (i + 1) % items.length), interval * 1000);
     return () => clearTimeout(t);
-  }, [index, paused, items.length]);
+  }, [index, paused, items.length, interval]);
 
   if (items.length === 0) return null;
   const item = items[index];

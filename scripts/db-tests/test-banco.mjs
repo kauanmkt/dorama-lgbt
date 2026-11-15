@@ -33,6 +33,7 @@ console.log("\n▶ Aplicando migração");
 await db.exec(readFileSync(`${root}/supabase/migrations/0001_estrutura_inicial.sql`, "utf8"));
 await db.exec(readFileSync(`${root}/supabase/migrations/0002_login_por_email.sql`, "utf8"));
 await db.exec(readFileSync(`${root}/supabase/migrations/0003_restringir_funcoes.sql`, "utf8"));
+await db.exec(readFileSync(`${root}/supabase/migrations/0004_cadastro_pelo_painel.sql`, "utf8"));
 ok(true, "migração aplicada sem erros");
 
 console.log("\n▶ Aplicando dados de demonstração (2x, para testar repetição)");
@@ -79,6 +80,8 @@ const r = await q("update profiles set name='hack' where id=$1 returning id", [b
 ok(r.length === 0, "não edita o perfil de outra pessoa");
 await expectError("insert into admins (user_id) values ($1)", "não se torna admin sozinha", [ana]);
 await expectError("insert into doramas (slug, title) values ('y','y')", "não cria dorama");
+await expectError(`select public.admin_save_dorama('{"slug":"x","title":"x"}'::jsonb)`, "não usa a função de salvar dorama do painel");
+await expectError("select public.admin_set_featured('{}'::uuid[])", "não mexe nos destaques");
 await expectError("insert into subscriptions (user_id, lifetime) values ($1, true)", "não libera acesso para si mesma", [ana]);
 ok((await q("select count(*)::int n from videos"))[0].n === 0, "não vê nenhum vídeo");
 ok((await q("select count(*)::int n from doramas"))[0].n === 14, "vê só publicados");
@@ -122,6 +125,57 @@ ok((await q("select video_ready from episodes where id=$1", [epNew]))[0].video_r
 await expectError("insert into doramas (slug, title) values ('novo', 'x')", "slug reservado 'novo' é recusado");
 await expectError("insert into doramas (slug, title) values ('Com Espaço', 'x')", "slug inválido é recusado");
 
+console.log("\n▶ Cadastro pelo painel (admin_save_dorama)");
+const save = async (payload) => (await q("select public.admin_save_dorama($1::jsonb) r", [JSON.stringify(payload)]))[0].r;
+const base = {
+  slug: "teste-painel", title: "Teste Painel", synopsis: "Sinopse", year: 2026, country: "Japão",
+  age_rating: "16", status: "em_exibicao", visibility: "rascunho", is_featured: false, is_new: true, art_seed: 3,
+  categories: ["bl", "romance"],
+  seasons: [{ number: 1, episodes: [
+    { number: 1, title: "Um", synopsis: "", duration_min: 40 },
+    { number: 2, title: "Dois", synopsis: "", duration_min: 42 },
+  ] }],
+};
+const created = await save(base);
+ok(created.id && created.slug === "teste-painel", "cria dorama novo com temporada e 2 episódios");
+const eps = async () => q("select e.id, e.number, e.title, s.number season from episodes e join seasons s on s.id=e.season_id where s.dorama_id=$1 order by s.number, e.number", [created.id]);
+let list = await eps();
+ok(list.length === 2 && list[0].title === "Um", "episódios gravados na ordem");
+ok((await q("select count(*)::int n from dorama_categories where dorama_id=$1", [created.id]))[0].n === 2, "2 categorias vinculadas");
+await q("insert into videos (episode_id, storage_key, status) values ($1, 'teste/um.mp4', 'pronto')", [list[0].id]);
+// troca a ordem dos episódios, edita título, adiciona T2, troca categorias
+await save({ ...base, id: created.id, title: "Teste Editado", visibility: "publicado", is_featured: true, categories: ["gl"],
+  seasons: [
+    { number: 1, episodes: [
+      { id: list[0].id, number: 2, title: "Um (agora 2)", duration_min: 40 },
+      { id: list[1].id, number: 1, title: "Dois (agora 1)", duration_min: 42 },
+    ] },
+    { number: 2, episodes: [{ id: "novo-123", number: 1, title: "T2E1", duration_min: 50 }] },
+  ] });
+list = await eps();
+ok(list.length === 3 && list[0].title === "Dois (agora 1)" && list[1].title === "Um (agora 2)", "troca a ordem dos episódios sem conflito");
+ok(list[1].id === (await q("select episode_id from videos where storage_key='teste/um.mp4'"))[0].episode_id, "episódio editado mantém o vídeo vinculado");
+ok(list[2].season === 2 && list[2].title === "T2E1", "id provisório ('novo-…') vira episódio novo na temporada 2");
+const d = (await q("select title, visibility, is_featured, featured_position, published_at from doramas where id=$1", [created.id]))[0];
+ok(d.title === "Teste Editado" && d.visibility === "publicado" && d.published_at, "edita e publica");
+ok(d.is_featured && d.featured_position > 0, `entra nos destaques no fim da fila (posição ${d.featured_position})`);
+ok((await q("select c.slug from dorama_categories dc join categories c on c.id=dc.category_id where dorama_id=$1", [created.id])).map((r) => r.slug).join() === "gl", "categorias substituídas");
+// remove temporada 1 inteira
+await save({ ...base, id: created.id, seasons: [{ number: 2, episodes: [{ id: list[2].id, number: 1, title: "T2E1" }] }] });
+list = await eps();
+ok(list.length === 1 && list[0].season === 2, "temporada removida apaga os episódios dela");
+ok((await q("select count(*)::int n from videos where storage_key='teste/um.mp4'"))[0].n === 0, "…e o vínculo do vídeo");
+await expectError(`select public.admin_save_dorama('${JSON.stringify({ ...base, slug: "amor-em-seul" })}'::jsonb)`, "endereço repetido é recusado");
+await expectError(`select public.admin_save_dorama('${JSON.stringify({ ...base, slug: "outro", seasons: [{ number: 1, episodes: [{ number: 1, title: "a" }, { number: 1, title: "b" }] }] })}'::jsonb)`, "número de episódio repetido é recusado (e nada é salvo)");
+ok((await q("select count(*)::int n from doramas where slug='outro'"))[0].n === 0, "…confirmado: nada ficou pela metade");
+// destaques e categorias
+const top = (await q("select id from doramas where visibility='publicado' order by title limit 2")).map((r) => r.id);
+await q("select public.admin_set_featured($1::uuid[])", [top]);
+const feat = await q("select id, featured_position from doramas where is_featured order by featured_position");
+ok(feat.length === 2 && feat[0].id === top[0] && feat[1].featured_position === 2, "define destaques e a ordem deles");
+await q("select public.admin_reorder_categories($1::text[])", [["gl", "bl"]]);
+ok((await q("select slug from categories order by position, slug limit 2")).map((r) => r.slug).join() === "gl,bl", "reordena categorias");
+
 console.log("\n▶ Ana depois da liberação");
 await as("authenticated", ana);
 ok((await q("select public.has_active_access() a"))[0].a === true, "agora tem acesso");
@@ -139,7 +193,7 @@ ok((await q("select public.has_active_access() a"))[0].a === false, "vencida →
 console.log("\n▶ Remover demonstração");
 await asOwner();
 await db.exec(readFileSync(`${root}/supabase/remover-demo.sql`, "utf8"));
-ok((await q("select count(*)::int n from doramas"))[0].n === 1, "sobra só o dorama criado fora da demo");
+ok((await q("select count(*)::int n from doramas"))[0].n === 2, "sobram só os doramas criados fora da demo");
 ok((await q("select count(*)::int n from plans where name='Mensal'"))[0].n === 1, "plano em uso (Mensal) é mantido");
 
 console.log(`\n${fail === 0 ? "✅" : "❌"} ${pass} testes passaram, ${fail} falharam`);

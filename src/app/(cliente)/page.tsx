@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { ContinueCard } from "@/components/catalog/ContinueCard";
 import { DoramaCard } from "@/components/catalog/DoramaCard";
 import { HeroCarousel, type HeroItem } from "@/components/catalog/HeroCarousel";
+import { getPublicSetting } from "@/lib/settings";
 import { Rail } from "@/components/catalog/Rail";
 import { TopCard } from "@/components/catalog/TopCard";
 import {
@@ -52,11 +53,14 @@ export default async function HomePage() {
     inMyList: false,
   }));
 
+  const rotation = await getPublicSetting<number>("hero_rotation_s");
+  const heroInterval = typeof rotation === "number" ? rotation : 8;
+
   const isEmpty = featured.length === 0 && releases.length === 0 && top.length === 0;
 
   return (
     <>
-      {heroItems.length > 0 ? <HeroCarousel items={heroItems} /> : <div className="h-24" />}
+      {heroItems.length > 0 ? <HeroCarousel items={heroItems} interval={heroInterval} /> : <div className="h-24" />}
 
       <div className={heroItems.length > 0 ? "relative z-10 -mt-10 space-y-8 md:-mt-16 md:space-y-10" : "space-y-8"}>
         <Suspense fallback={null}>

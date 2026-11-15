@@ -16,7 +16,7 @@ import {
   type ComponentProps,
 } from "react";
 import { createPortal } from "react-dom";
-import { ArrowLeft, CheckCircle2, ImagePlus, Search, X, XCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ImagePlus, Loader2, Search, X, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // ============ Estrutura da página ============
@@ -288,12 +288,18 @@ export function ImageDrop({
   hint,
   aspect = "poster",
   preview,
+  onFile,
+  busy = false,
 }: {
   label: string;
   hint?: string;
   aspect?: "poster" | "banner";
   /** Arte atual (quando já existe) */
   preview?: React.ReactNode;
+  /** Chamado com o arquivo escolhido (para enviar ao servidor) */
+  onFile?: (file: File) => void;
+  /** Mostra "Enviando…" por cima da imagem */
+  busy?: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<{ url: string; name: string } | null>(null);
@@ -309,6 +315,7 @@ export function ImageDrop({
   const pick = (f?: File) => {
     if (!f || !f.type.startsWith("image/")) return;
     setFile({ url: URL.createObjectURL(f), name: f.name });
+    onFile?.(f);
   };
 
   return (
@@ -352,6 +359,11 @@ export function ImageDrop({
           <span className="text-sm font-semibold">{file || preview ? "Trocar imagem" : "Arraste ou clique"}</span>
           <span className="text-xs text-fg-subtle">JPG, PNG ou WebP</span>
         </div>
+        {busy && (
+          <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/70 text-sm font-semibold">
+            <Loader2 className="size-4 animate-spin" /> Enviando…
+          </div>
+        )}
         <input
           ref={inputRef}
           type="file"
