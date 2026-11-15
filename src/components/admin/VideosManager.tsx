@@ -22,7 +22,8 @@ import {
   Segmented,
   useToast,
 } from "@/components/admin/ui";
-import { useSimulatedUpload } from "@/components/admin/upload";
+import { useVideoUpload, type FinishedUpload } from "@/components/admin/upload";
+import { concluirEnvio, excluirVideo } from "@/lib/video-actions";
 import { formatBytes, formatRelative } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -42,15 +43,14 @@ export type EpisodeRow = {
   };
 };
 
-type QueueItem = { id: string; name: string; size: number; episodeId: string };
+type QueueItem = { id: string; file: File; name: string; size: number; episodeId: string };
 type Filter = "todos" | "sem_video" | "com_video";
 
 const label = (r: EpisodeRow) => `${r.doramaTitle} · T${r.season}:E${r.number}`;
-const keyFor = (r: EpisodeRow) =>
-  `doramas/${r.doramaSlug}/t${r.season}/e${String(r.number).padStart(2, "0")}/video.mp4`;
 
 /** CENTRAL DE VÍDEOS — envio em lote e biblioteca de arquivos no R2. */
-export function VideosManager({ initial }: { initial: EpisodeRow[] }) {
+export function VideosManager({ initial, now: nowIso }: { initial: EpisodeRow[]; now: string }) {
+  const now = new Date(nowIso);
   const toast = useToast();
   const [rows, setRows] = useState(initial);
   const [queue, setQueue] = useState<QueueItem[]>([]);
@@ -85,19 +85,32 @@ export function VideosManager({ initial }: { initial: EpisodeRow[] }) {
       if (!f.type.startsWith("video/") && !/\.(mp4|m4v|mov)$/i.test(f.name)) continue;
       const episodeId = target ?? guessEpisode(f.name, taken);
       taken.add(episodeId);
-      items.push({ id: `${Date.now()}-${f.name}-${Math.random()}`, name: f.name, size: f.size, episodeId });
+      items.push({ id: `${Date.now()}-${f.name}-${Math.random()}`, file: f, name: f.name, size: f.size, episodeId });
     }
     if (items.length) setQueue((q) => [...items, ...q]);
   };
 
-  const finish = (item: QueueItem) => {
+  /** Envio terminou: vincula ao episódio no banco e atualiza a lista. */
+  const finish = async (item: QueueItem, upload: FinishedUpload) => {
+    if (upload) {
+      const res = await concluirEnvio({
+        ...upload,
+        episodeId: item.episodeId,
+        fileName: item.name,
+        size: item.size,
+      });
+      if (!res.ok) {
+        toast(res.error, "error");
+        return res;
+      }
+    }
     setRows((list) =>
       list.map((r) =>
         r.episodeId === item.episodeId
           ? {
               ...r,
               video: {
-                key: keyFor(r),
+                key: upload?.key ?? `videos/demo/${item.name}`,
                 fileName: item.name,
                 sizeBytes: item.size,
                 status: "pronto",
@@ -108,7 +121,8 @@ export function VideosManager({ initial }: { initial: EpisodeRow[] }) {
       ),
     );
     const r = rows.find((x) => x.episodeId === item.episodeId);
-    toast(r ? `Vídeo vinculado a ${label(r)}` : "Envio concluído");
+    toast(r ? `Vídeo vinculado a ${label(r)} — já disponível no site` : "Envio concluído");
+    return { ok: true as const };
   };
 
   const shown = useMemo(() => {
@@ -252,7 +266,7 @@ export function VideosManager({ initial }: { initial: EpisodeRow[] }) {
                   </p>
                   {r.video ? (
                     <p className="truncate font-mono text-[11px] text-fg-subtle" title={r.video.key}>
-                      {r.video.key} · {formatBytes(r.video.sizeBytes)} · {formatRelative(r.video.uploadedAt)}
+                      {r.video.key} · {formatBytes(r.video.sizeBytes)} · {formatRelative(r.video.uploadedAt, now)}
                     </p>
                   ) : (
                     <p className="text-xs text-warning">Aguardando vídeo</p>
@@ -312,10 +326,14 @@ export function VideosManager({ initial }: { initial: EpisodeRow[] }) {
             <Button
               variant="danger"
               size="sm"
-              onClick={() => {
-                setRows((list) => list.map((r) => (r.episodeId === toDelete?.episodeId ? { ...r, video: undefined } : r)));
-                toast("Vídeo excluído do armazenamento");
+              onClick={async () => {
+                const target = toDelete;
                 setToDelete(null);
+                if (!target) return;
+                const res = await excluirVideo(target.episodeId);
+                if (!res.ok) return toast(res.error, "error");
+                setRows((list) => list.map((r) => (r.episodeId === target.episodeId ? { ...r, video: undefined } : r)));
+                toast(res.message ?? "Vídeo excluído do armazenamento");
               }}
             >
               <Trash2 /> Excluir
@@ -354,22 +372,27 @@ function QueueRow({
   item: QueueItem;
   options: EpisodeRow[];
   onLink: (episodeId: string) => void;
-  onDone: (item: QueueItem) => void;
+  onDone: (item: QueueItem, upload: FinishedUpload) => Promise<{ ok: true } | { ok: false; error: string }>;
   onRemove: () => void;
 }) {
-  const { state, start, cancel } = useSimulatedUpload();
+  const { state, start, cancel } = useVideoUpload();
   // Guarda o episódio escolhido mais recente (pode mudar durante o envio)
   const itemRef = useRef(item);
+  const started = useRef(false);
   useEffect(() => {
     itemRef.current = item;
   }, [item]);
 
+  // Começa assim que houver um episódio escolhido
   useEffect(() => {
-    start(item.size, () => onDone(itemRef.current));
+    if (started.current || !item.episodeId) return;
+    started.current = true;
+    start(item.file, (upload) => onDone(itemRef.current, upload));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [item.episodeId]);
 
   const done = state.status === "concluido";
+  const failed = state.status === "erro";
 
   return (
     <li className="px-4 py-3.5 sm:px-5">
@@ -385,14 +408,22 @@ function QueueRow({
           </span>
         ) : state.status === "cancelado" ? (
           <span className="text-xs font-bold text-danger">Cancelado</span>
+        ) : failed ? (
+          <span className="text-xs font-bold text-danger">Falhou</span>
+        ) : state.status === "finalizando" ? (
+          <span className="flex items-center gap-1 text-xs font-semibold text-brand-300">
+            <Loader2 className="size-3.5 animate-spin" /> Finalizando
+          </span>
+        ) : !item.episodeId ? (
+          <span className="text-xs font-semibold text-warning">Escolha o episódio</span>
         ) : (
           <span className="text-xs font-semibold text-fg-muted tabular-nums">{Math.floor(state.percent)}%</span>
         )}
         <button
           type="button"
-          aria-label={done ? "Remover da lista" : "Cancelar envio"}
+          aria-label={done || failed ? "Remover da lista" : "Cancelar envio"}
           onClick={() => {
-            if (!done) cancel();
+            if (!done && !failed) cancel();
             onRemove();
           }}
           className="flex h-8 w-8 items-center justify-center rounded-full text-fg-muted hover:bg-white/10"
@@ -400,13 +431,15 @@ function QueueRow({
           <X className="size-4" />
         </button>
       </div>
-      {!done && state.status !== "cancelado" && (
+      {failed && <p className="mt-2 text-xs font-semibold text-danger">{state.error}</p>}
+      {!done && !failed && state.status !== "cancelado" && (
         <>
           <ProgressBar value={state.percent} className="mt-2.5" />
           <div className="mt-2.5 flex flex-col gap-2 sm:flex-row sm:items-center">
             <span className="shrink-0 text-xs font-semibold text-fg-subtle">Vincular a</span>
             <select
               value={item.episodeId}
+              disabled={state.status === "finalizando"}
               onChange={(e) => onLink(e.target.value)}
               className="h-9 min-w-0 flex-1 rounded-lg border border-line bg-ink-850 px-2 text-sm text-fg outline-none focus:border-brand-500"
             >
@@ -417,9 +450,12 @@ function QueueRow({
                 </option>
               ))}
             </select>
-            <span className="shrink-0 text-[11px] text-fg-subtle tabular-nums">
-              parte {Math.min(state.partsDone + 1, state.partsTotal)}/{state.partsTotal}
-            </span>
+            {state.partsTotal > 0 && (
+              <span className="shrink-0 text-[11px] text-fg-subtle tabular-nums">
+                parte {Math.min(state.partsDone + 1, state.partsTotal)}/{state.partsTotal} ·{" "}
+                {formatBytes(state.speed)}/s
+              </span>
+            )}
           </div>
         </>
       )}

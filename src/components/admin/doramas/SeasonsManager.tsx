@@ -5,7 +5,7 @@ import { ChevronDown, Film, Info, Loader2, Pencil, Plus, Trash2 } from "lucide-r
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { EmptyState, Modal, TextArea, TextInput, useToast } from "@/components/admin/ui";
-import type { PickedVideo } from "@/components/admin/VideoPicker";
+import { VideoPicker, type PickedVideo } from "@/components/admin/VideoPicker";
 import { cn } from "@/lib/utils";
 
 export type EditorEpisode = {
@@ -225,7 +225,10 @@ function EpisodeModal({
   const [title, setTitle] = useState(episode?.title ?? "");
   const [synopsis, setSynopsis] = useState(episode?.synopsis ?? "");
   const [duration, setDuration] = useState(episode?.durationMin ?? 45);
+  const [video, setVideo] = useState(episode?.video);
   const [error, setError] = useState("");
+  // Episódio já gravado no banco? (ids provisórios começam com "novo-")
+  const saved = Boolean(episode && !episode.id.startsWith("novo-"));
 
   const save = () => {
     if (!title.trim()) return setError("Dê um título ao episódio.");
@@ -235,8 +238,8 @@ function EpisodeModal({
       title: title.trim(),
       synopsis: synopsis.trim(),
       durationMin: duration,
-      video: episode?.video,
-      ready: episode?.ready,
+      video,
+      ready: episode?.ready || Boolean(video),
     });
   };
 
@@ -293,12 +296,21 @@ function EpisodeModal({
         wrapperClassName="mt-4"
         rows={3}
       />
-      <p className="mt-4 flex items-start gap-2 rounded-xl bg-white/[0.04] px-3 py-2.5 text-xs text-fg-muted ring-1 ring-white/10">
-        <Info className="mt-0.5 size-3.5 shrink-0 text-brand-300" />
-        {episode?.video || episode?.ready
-          ? "Este episódio já tem vídeo liberado."
-          : "O envio do vídeo chega na próxima etapa (Cloudflare R2). Até lá, o episódio aparece como “Em breve”."}
-      </p>
+      <div className="mt-4">
+        <p className="mb-1.5 text-sm font-semibold text-fg-muted">Vídeo</p>
+        {saved && episode ? (
+          <VideoPicker
+            episodeId={episode.id}
+            current={video}
+            onUploaded={(v) => setVideo({ ...v, status: "pronto" })}
+          />
+        ) : (
+          <p className="flex items-start gap-2 rounded-xl bg-white/[0.04] px-3 py-2.5 text-xs text-fg-muted ring-1 ring-white/10">
+            <Info className="mt-0.5 size-3.5 shrink-0 text-brand-300" />
+            Salve o dorama primeiro; depois abra este episódio de novo para enviar o vídeo (ou use a tela Vídeos).
+          </p>
+        )}
+      </div>
     </Modal>
   );
 }

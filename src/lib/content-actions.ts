@@ -26,6 +26,24 @@ async function session() {
   return createSessionClient();
 }
 
+type Db = Awaited<ReturnType<typeof session>>;
+
+/** Arquivos de vídeo (no R2) dos episódios de um dorama. */
+async function videoKeys(supabase: Db, doramaId: string): Promise<string[]> {
+  const { data } = await supabase
+    .from("videos")
+    .select("storage_key, episodes!inner(seasons!inner(dorama_id))")
+    .eq("episodes.seasons.dorama_id", doramaId);
+  return (data ?? []).map((v) => v.storage_key as string);
+}
+
+/** Apaga do R2 os vídeos que deixaram de existir no banco. */
+async function cleanupVideos(keys: string[]) {
+  if (keys.length === 0) return;
+  const { deleteObjectsQuietly } = await import("@/lib/r2");
+  await deleteObjectsQuietly(keys);
+}
+
 /** Traduz os erros do banco para algo que dá para entender. */
 function friendly(message: string): string {
   if (message.includes("doramas_slug_key")) return "Já existe um dorama com esse endereço. Troque o endereço da página.";
@@ -72,6 +90,7 @@ export async function salvarDorama(input: DoramaInput): Promise<Result & { id?: 
   }
 
   const supabase = await session();
+  const before = input.id ? await videoKeys(supabase, input.id) : [];
   const { data, error } = await supabase.rpc("admin_save_dorama", {
     payload: {
       id: input.id ?? null,
@@ -107,15 +126,22 @@ export async function salvarDorama(input: DoramaInput): Promise<Result & { id?: 
 
   updateTag(CATALOG_TAG);
   const saved = data as { id: string; slug: string };
+  // Episódios/temporadas excluídos levam junto o vídeo: apaga o arquivo do R2
+  if (before.length) {
+    const after = new Set(await videoKeys(supabase, saved.id));
+    await cleanupVideos(before.filter((k) => !after.has(k)));
+  }
   return { ok: true, id: saved.id, slug: saved.slug };
 }
 
 export async function excluirDorama(id: string): Promise<Result> {
   if (!isSupabaseConfigured) return demo();
   const supabase = await session();
+  const keys = await videoKeys(supabase, id);
   const { error } = await supabase.from("doramas").delete().eq("id", id);
   if (error) return { ok: false, error: friendly(error.message) };
   updateTag(CATALOG_TAG);
+  await cleanupVideos(keys);
   return { ok: true };
 }
 

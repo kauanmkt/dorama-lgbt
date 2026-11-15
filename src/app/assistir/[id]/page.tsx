@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { ArrowLeft, Clock, Loader2, Lock, Wrench } from "lucide-react";
 import { PlayerShell } from "@/components/player/PlayerShell";
 import { getMyAccess, isAdmin } from "@/lib/auth";
+import { getPlaybackSource } from "@/lib/playback";
 import { getPublicSetting } from "@/lib/settings";
 import {
   getAllEpisodeIds,
@@ -103,8 +104,12 @@ async function PlayerGate({ ctx }: { ctx: EpisodeContext }) {
       </div>
     );
   }
-  const progress = (await getContinueWatching(50)).find((c) => c.episode.id === ctx.episode.id);
-  return <Player ctx={ctx} startPercent={progress?.percent} />;
+  const [progress, source, autoplay] = await Promise.all([
+    getContinueWatching(50).then((list) => list.find((c) => c.episode.id === ctx.episode.id)),
+    getPlaybackSource(ctx.episode.id),
+    getPublicSetting<boolean>("autoplay_next"),
+  ]);
+  return <Player ctx={ctx} startPercent={progress?.percent} src={source?.url} autoplayNext={autoplay !== false} />;
 }
 
 function Loading() {
@@ -115,7 +120,17 @@ function Loading() {
   );
 }
 
-function Player({ ctx, startPercent }: { ctx: EpisodeContext; startPercent?: number }) {
+function Player({
+  ctx,
+  startPercent,
+  src,
+  autoplayNext,
+}: {
+  ctx: EpisodeContext;
+  startPercent?: number;
+  src?: string;
+  autoplayNext: boolean;
+}) {
   const pick = ({ id, season, number, title, durationMin }: EpisodeContext["episode"]) => ({
     id,
     season,
@@ -132,6 +147,8 @@ function Player({ ctx, startPercent }: { ctx: EpisodeContext; startPercent?: num
       episode={pick(ctx.episode)}
       next={ctx.next ? pick(ctx.next) : undefined}
       startPercent={startPercent}
+      src={src}
+      autoplayNext={autoplayNext}
     />
   );
 }

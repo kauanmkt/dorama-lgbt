@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { VideosManager, type EpisodeRow } from "@/components/admin/VideosManager";
 import { getAdminDoramas, getVideos } from "@/lib/admin";
+import { NOW } from "@/lib/format";
+import { isR2Configured } from "@/lib/r2";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 
 export const metadata: Metadata = { title: "Vídeos" };
@@ -37,13 +39,13 @@ export default async function AdminVideosPage() {
 
   return (
     <>
-      {isSupabaseConfigured && (
+      {isSupabaseConfigured && !isR2Configured && (
         <p className="mb-6 rounded-xl bg-warning/10 px-4 py-3 text-sm text-warning ring-1 ring-warning/25">
-          <strong>Em preparação:</strong> a lista de episódios já é a real, mas o envio de vídeos ainda é
-          simulado — ele passa a gravar no Cloudflare R2 na próxima etapa.
+          <strong>Falta configurar:</strong> o armazenamento de vídeos (Cloudflare R2) ainda não está ligado
+          na Vercel. Os envios vão falhar até as chaves do R2 serem cadastradas.
         </p>
       )}
-      <VideosManager initial={rows} />
+      <VideosManager initial={rows} now={(isSupabaseConfigured ? new Date() : NOW).toISOString()} />
     </>
   );
 }

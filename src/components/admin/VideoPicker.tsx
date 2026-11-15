@@ -4,41 +4,58 @@ import { useRef, useState } from "react";
 import { CheckCircle2, FileVideo, RefreshCw, UploadCloud, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { ProgressBar } from "@/components/admin/ui";
-import { useSimulatedUpload } from "@/components/admin/upload";
+import { useVideoUpload } from "@/components/admin/upload";
+import { concluirEnvio } from "@/lib/video-actions";
 import { formatBytes } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export type PickedVideo = { name: string; size: number };
 
 /**
- * Seletor + envio de vídeo de um episódio.
+ * Seletor + envio de vídeo de um episódio (já salvo no banco).
  * Mostra o vídeo atual (se houver), permite trocar e acompanha o envio.
+ * Ao terminar, o vídeo já fica vinculado ao episódio — não precisa salvar.
  */
 export function VideoPicker({
+  episodeId,
   current,
   onUploaded,
 }: {
+  episodeId: string;
   current?: PickedVideo;
   onUploaded?: (v: PickedVideo) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<PickedVideo | null>(null);
   const [over, setOver] = useState(false);
-  const { state, start, cancel, reset } = useSimulatedUpload();
+  const { state, start, cancel, reset } = useVideoUpload();
 
   const pick = (f?: File) => {
     if (!f) return;
-    if (!f.type.startsWith("video/") && !/\.(mp4|m4v|mov)$/i.test(f.name)) return;
+    if (!f.type.startsWith("video/") && !/\.(mp4|m4v|mov|webm)$/i.test(f.name)) return;
     const v = { name: f.name, size: f.size };
     setFile(v);
-    start(f.size, () => onUploaded?.(v));
+    start(f, async (upload) => {
+      if (upload) {
+        const r = await concluirEnvio({ ...upload, episodeId, fileName: f.name, size: f.size });
+        if (!r.ok) return r;
+      }
+      onUploaded?.(v);
+      return { ok: true };
+    });
   };
+  const busy = state.status === "enviando" || state.status === "finalizando";
 
   const shown = file ?? current;
 
   return (
     <div>
-      {shown && state.status !== "enviando" ? (
+      {state.status === "erro" && (
+        <p className="mb-2 rounded-lg bg-danger/10 px-3 py-2 text-xs font-semibold text-danger ring-1 ring-danger/25">
+          {state.error}
+        </p>
+      )}
+      {shown && !busy && state.status !== "erro" ? (
         <div className="flex items-center gap-3 rounded-xl border border-line bg-ink-850 p-3">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-600/15 text-brand-300">
             <FileVideo className="size-5" />
@@ -59,7 +76,7 @@ export function VideoPicker({
             <RefreshCw /> Trocar
           </Button>
         </div>
-      ) : state.status === "enviando" && file ? (
+      ) : busy && file ? (
         <div className="rounded-xl border border-brand-600/40 bg-brand-600/[0.06] p-4">
           <div className="flex items-center gap-3">
             <UploadCloud className="size-5 shrink-0 text-brand-300" />
@@ -80,8 +97,11 @@ export function VideoPicker({
           <ProgressBar value={state.percent} className="mt-3" />
           <p className="mt-2 flex justify-between text-xs text-fg-subtle tabular-nums">
             <span>
-              {Math.floor(state.percent)}% · parte {Math.min(state.partsDone + 1, state.partsTotal)} de{" "}
-              {state.partsTotal}
+              {state.status === "finalizando"
+                ? "Finalizando…"
+                : state.partsTotal
+                  ? `${Math.floor(state.percent)}% · parte ${Math.min(state.partsDone + 1, state.partsTotal)} de ${state.partsTotal}`
+                  : "Preparando…"}
             </span>
             <span>{formatBytes(state.speed)}/s</span>
           </p>
@@ -107,7 +127,7 @@ export function VideoPicker({
         >
           <UploadCloud className="size-8 text-brand-300" />
           <span className="text-sm font-semibold">Arraste o vídeo ou clique para escolher</span>
-          <span className="text-xs text-fg-subtle">MP4 · arquivos grandes são enviados em partes</span>
+          <span className="text-xs text-fg-subtle">MP4 (H.264) · arquivos grandes são enviados em partes</span>
         </button>
       )}
       <input

@@ -195,7 +195,7 @@ scripts/                    → Ferramentas (gerador de ícones)
 - [x] 4. Integração com Supabase
 - [x] 5. Autenticação e permissões
 - [x] 6. Cadastro de doramas e episódios (painel salva no banco; site atualiza na hora)
-- [ ] 7. Integração com Cloudflare R2
-- [ ] 8. Player e progresso de reprodução
+- [x] 7. Integração com Cloudflare R2 (envio em partes direto do navegador; link temporário para assistir)
+- [x] 8. Player e progresso de reprodução (retoma de onde parou; próximo episódio automático)
 - [ ] 9. Usuários, planos e telas simultâneas
 - [ ] 10. PWA, testes e publicação

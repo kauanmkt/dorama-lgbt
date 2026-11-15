@@ -1,9 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  AlertTriangle,
   ArrowLeft,
+  Loader2,
   Maximize,
   Minimize,
   Pause,
@@ -15,14 +18,16 @@ import {
   VolumeX,
 } from "lucide-react";
 import { Artwork } from "@/components/catalog/Artwork";
+import { salvarProgresso } from "@/lib/progress-actions";
 import { cn } from "@/lib/utils";
 
 type EpisodeInfo = { id: string; season: number; number: number; title: string; durationMin: number };
 
 /**
- * PLAYER — interface visual (Etapa 2).
- * Os controles já funcionam na tela; o vídeo real (MP4/HLS vindo do R2),
- * o salvamento do progresso e o retomar de onde parou entram na Etapa 8.
+ * PLAYER.
+ *  - Com `src` (link temporário do R2): toca o vídeo de verdade, retoma de onde
+ *    parou e salva o progresso a cada 15 s, ao pausar e ao sair.
+ *  - Sem `src` (modo demonstração): simula o vídeo para validar a interface.
  */
 export function PlayerShell({
   doramaSlug,
@@ -31,6 +36,8 @@ export function PlayerShell({
   episode,
   next,
   startPercent = 0,
+  src,
+  autoplayNext = true,
 }: {
   doramaSlug: string;
   doramaTitle: string;
@@ -38,22 +45,84 @@ export function PlayerShell({
   episode: EpisodeInfo;
   next?: EpisodeInfo;
   startPercent?: number;
+  src?: string;
+  autoplayNext?: boolean;
 }) {
-  const total = episode.durationMin * 60;
-  const [time, setTime] = useState(Math.round((startPercent / 100) * total));
-  const [playing, setPlaying] = useState(false);
+  const router = useRouter();
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [total, setTotal] = useState(episode.durationMin * 60);
+  const [time, setTime] = useState(src ? 0 : Math.round((startPercent / 100) * episode.durationMin * 60));
+  const [playing, setPlayingState] = useState(false);
+  const [buffering, setBuffering] = useState(Boolean(src));
+  const [failed, setFailed] = useState(false);
   const [muted, setMuted] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [showUi, setShowUi] = useState(true);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const rootRef = useRef<HTMLDivElement>(null);
 
-  // Simula o avanço do tempo enquanto "toca"
+  // ---------- Controle do vídeo (real ou simulado) ----------
+  const setPlaying = useCallback(
+    (value: boolean | ((p: boolean) => boolean)) => {
+      const v = videoRef.current;
+      if (!src || !v) return setPlayingState(value);
+      const want = typeof value === "function" ? value(!v.paused) : value;
+      if (want) v.play().catch(() => setPlayingState(false));
+      else v.pause();
+    },
+    [src],
+  );
+
+  const seekTo = useCallback(
+    (t: number) => {
+      const clamped = Math.max(0, Math.min(total, t));
+      if (src && videoRef.current) videoRef.current.currentTime = clamped;
+      setTime(clamped);
+    },
+    [src, total],
+  );
+
+  // Simula o avanço do tempo enquanto "toca" (só no modo demonstração)
   useEffect(() => {
-    if (!playing) return;
+    if (src || !playing) return;
     const t = setInterval(() => setTime((s) => Math.min(total, s + 1)), 1000);
     return () => clearInterval(t);
-  }, [playing, total]);
+  }, [src, playing, total]);
+
+  useEffect(() => {
+    if (videoRef.current) videoRef.current.muted = muted;
+  }, [muted]);
+
+  // ---------- Progresso ----------
+  const lastSaved = useRef(0);
+  const save = useCallback(
+    (force = false) => {
+      const v = videoRef.current;
+      if (!src || !v || !Number.isFinite(v.duration) || v.duration <= 0) return;
+      if (!force && Math.abs(v.currentTime - lastSaved.current) < 5) return;
+      lastSaved.current = v.currentTime;
+      salvarProgresso({ episodeId: episode.id, positionSec: v.currentTime, durationSec: v.duration }).catch(() => {});
+    },
+    [src, episode.id],
+  );
+
+  useEffect(() => {
+    if (!src || !playing) return;
+    const t = setInterval(() => save(), 15_000);
+    return () => clearInterval(t);
+  }, [src, playing, save]);
+
+  useEffect(() => {
+    if (!src) return;
+    const onHide = () => document.visibilityState === "hidden" && save(true);
+    document.addEventListener("visibilitychange", onHide);
+    window.addEventListener("pagehide", onHide);
+    return () => {
+      document.removeEventListener("visibilitychange", onHide);
+      window.removeEventListener("pagehide", onHide);
+      save(true);
+    };
+  }, [src, save]);
 
   // Esconde os controles depois de 3s sem mexer o mouse/dedo
   const poke = useCallback(() => {
@@ -71,7 +140,7 @@ export function PlayerShell({
   }, [playing]);
   const uiVisible = showUi || !playing;
 
-  const seek = (delta: number) => setTime((s) => Math.max(0, Math.min(total, s + delta)));
+  const seek = (delta: number) => seekTo((src ? (videoRef.current?.currentTime ?? time) : time) + delta);
 
   const toggleFullscreen = async () => {
     try {
@@ -114,16 +183,75 @@ export function PlayerShell({
       onTouchStart={poke}
       className={cn("fixed inset-0 overflow-hidden bg-black select-none", !uiVisible && "cursor-none")}
     >
-      {/* "Tela" do vídeo (provisória) */}
-      <button
-        type="button"
-        aria-label={playing ? "Pausar" : "Reproduzir"}
-        onClick={() => setPlaying((p) => !p)}
-        className="absolute inset-0"
-      >
-        <Artwork seed={artSeed + episode.number} title={doramaTitle} variant="backdrop" />
-        <span className="absolute inset-0 bg-black/30" />
-      </button>
+      {/* Tela do vídeo */}
+      {src ? (
+        <video
+          ref={videoRef}
+          src={src}
+          playsInline
+          autoPlay
+          preload="auto"
+          onClick={() => setPlaying((p) => !p)}
+          onLoadedMetadata={(e) => {
+            const v = e.currentTarget;
+            if (Number.isFinite(v.duration)) setTotal(v.duration);
+            // Retoma de onde parou (se não estava no finalzinho)
+            if (startPercent > 0 && startPercent < 95) v.currentTime = (startPercent / 100) * v.duration;
+          }}
+          onTimeUpdate={(e) => setTime(e.currentTarget.currentTime)}
+          onPlay={() => setPlayingState(true)}
+          onPause={() => {
+            setPlayingState(false);
+            save(true);
+          }}
+          onWaiting={() => setBuffering(true)}
+          onCanPlay={() => setBuffering(false)}
+          onPlaying={() => setBuffering(false)}
+          onError={() => {
+            setFailed(true);
+            setBuffering(false);
+          }}
+          onEnded={() => {
+            save(true);
+            if (next && autoplayNext) router.push(`/assistir/${next.id}`);
+          }}
+          className="absolute inset-0 h-full w-full bg-black object-contain"
+        />
+      ) : (
+        <button
+          type="button"
+          aria-label={playing ? "Pausar" : "Reproduzir"}
+          onClick={() => setPlaying((p) => !p)}
+          className="absolute inset-0"
+        >
+          <Artwork seed={artSeed + episode.number} title={doramaTitle} variant="backdrop" />
+          <span className="absolute inset-0 bg-black/30" />
+        </button>
+      )}
+
+      {buffering && !failed && (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+          <Loader2 className="size-12 animate-spin text-brand-300" />
+        </div>
+      )}
+
+      {failed && (
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-black/85 px-6 text-center">
+          <AlertTriangle className="size-8 text-warning" />
+          <p className="font-bold">Não foi possível carregar o vídeo</p>
+          <p className="max-w-xs text-sm text-white/70">Confira sua conexão e tente de novo.</p>
+          <button
+            type="button"
+            onClick={() => router.refresh()}
+            className="mt-1 rounded-full bg-brand-600 px-5 py-2.5 text-sm font-bold hover:bg-brand-500"
+          >
+            Tentar de novo
+          </button>
+          <Link href={`/dorama/${doramaSlug}`} className="text-sm font-semibold text-white/70 hover:text-white">
+            Voltar
+          </Link>
+        </div>
+      )}
 
       {/* Topo */}
       <div
@@ -161,7 +289,12 @@ export function PlayerShell({
         <CenterButton label="Voltar 10 segundos" onClick={() => seek(-10)}>
           <RotateCcw className="size-7" />
         </CenterButton>
-        <CenterButton label={playing ? "Pausar" : "Reproduzir"} onClick={() => setPlaying((p) => !p)} big>
+        <CenterButton
+          label={playing ? "Pausar" : "Reproduzir"}
+          onClick={() => setPlaying((p) => !p)}
+          big
+          hidden={buffering && playing}
+        >
           {playing ? (
             <Pause className="size-9 fill-white" />
           ) : (
@@ -200,9 +333,9 @@ export function PlayerShell({
             <input
               type="range"
               min={0}
-              max={total}
-              value={time}
-              onChange={(e) => setTime(Number(e.target.value))}
+              max={Math.max(1, Math.floor(total))}
+              value={Math.floor(time)}
+              onChange={(e) => seekTo(Number(e.target.value))}
               aria-label="Linha do tempo"
               className="player-range h-1 flex-1"
               style={{ "--pct": `${pct}%` } as React.CSSProperties}
@@ -261,11 +394,13 @@ function CenterButton({
   label,
   onClick,
   big,
+  hidden,
   children,
 }: {
   label: string;
   onClick: () => void;
   big?: boolean;
+  hidden?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -275,6 +410,7 @@ function CenterButton({
       onClick={onClick}
       className={cn(
         "pointer-events-auto flex items-center justify-center rounded-full transition hover:scale-110 active:scale-95",
+        hidden && "invisible",
         big ? "h-20 w-20 bg-brand-600/90 shadow-[0_0_60px] shadow-brand-600/60" : "h-14 w-14 bg-black/40",
       )}
     >
