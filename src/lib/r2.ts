@@ -11,10 +11,11 @@ import "server-only";
  */
 import { AwsClient } from "aws4fetch";
 
-const accountId = process.env.R2_ACCOUNT_ID ?? "";
-const accessKeyId = process.env.R2_ACCESS_KEY_ID ?? "";
-const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY ?? "";
-const bucket = process.env.R2_BUCKET ?? "";
+// .trim(): espaços/quebras de linha coladas sem querer invalidam a chave
+const accountId = (process.env.R2_ACCOUNT_ID ?? "").trim();
+const accessKeyId = (process.env.R2_ACCESS_KEY_ID ?? "").trim();
+const secretAccessKey = (process.env.R2_SECRET_ACCESS_KEY ?? "").trim();
+const bucket = (process.env.R2_BUCKET ?? "").trim();
 
 export const isR2Configured = Boolean(accountId && accessKeyId && secretAccessKey && bucket);
 
@@ -37,7 +38,9 @@ async function call(url: string, init: RequestInit, what: string) {
   if (!res.ok) {
     const body = await res.text().catch(() => "");
     const code = /<Code>([^<]+)<\/Code>/.exec(body)?.[1] ?? res.status;
-    throw new Error(`R2 recusou ${what} (${code})`);
+    const detail = /<Message>([^<]+)<\/Message>/.exec(body)?.[1];
+    console.error(`[R2] ${what}: ${res.status} ${code} ${detail ?? ""}`);
+    throw new Error(`R2 recusou ${what} (${code}${detail ? `: ${detail}` : ""})`);
   }
   return res;
 }
