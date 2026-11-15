@@ -18,7 +18,8 @@ export type HeroItem = {
   year: number;
   ageRating: string;
   categories: string[];
-  episodes: number;
+  /** duração formatada ("1h 45min") */
+  duration: string;
   artSeed: number;
   bannerUrl?: string;
   firstEpisodeId?: string;
@@ -90,8 +91,12 @@ export function HeroCarousel({ items, interval = 8 }: { items: HeroItem[]; inter
           <p className="mt-3 flex flex-wrap items-center gap-x-2 text-sm font-semibold text-fg-muted">
             <span>{item.year}</span>
             <span aria-hidden>·</span>
-            <span>{item.episodes} episódios</span>
-            <span aria-hidden>·</span>
+            {item.duration && (
+              <>
+                <span>{item.duration}</span>
+                <span aria-hidden>·</span>
+              </>
+            )}
             <span className="rounded border border-fg-subtle/60 px-1.5 text-xs leading-5">
               {item.ageRating === "L" ? "L" : `${item.ageRating}+`}
             </span>

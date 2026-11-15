@@ -24,16 +24,15 @@ import {
 } from "@/components/admin/ui";
 import { useVideoUpload, type FinishedUpload } from "@/components/admin/upload";
 import { concluirEnvio, excluirVideo } from "@/lib/video-actions";
-import { formatBytes, formatRelative } from "@/lib/format";
+import { formatBytes, formatRelative, slugify } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export type EpisodeRow = {
   episodeId: string;
   doramaTitle: string;
   doramaSlug: string;
-  season: number;
-  number: number;
-  title: string;
+  /** Já liberado (vídeo de demonstração) */
+  ready?: boolean;
   video?: {
     key: string;
     fileName: string;
@@ -46,7 +45,7 @@ export type EpisodeRow = {
 type QueueItem = { id: string; file: File; name: string; size: number; episodeId: string };
 type Filter = "todos" | "sem_video" | "com_video";
 
-const label = (r: EpisodeRow) => `${r.doramaTitle} · T${r.season}:E${r.number}`;
+const label = (r: EpisodeRow) => r.doramaTitle;
 
 /** CENTRAL DE VÍDEOS — envio em lote e biblioteca de arquivos no R2. */
 export function VideosManager({ initial, now: nowIso }: { initial: EpisodeRow[]; now: string }) {
@@ -65,17 +64,14 @@ export function VideosManager({ initial, now: nowIso }: { initial: EpisodeRow[];
   const missing = rows.filter((r) => !r.video);
   const total = rows.reduce((n, r) => n + (r.video?.sizeBytes ?? 0), 0);
 
-  // Tenta adivinhar o episódio pelo nome do arquivo (ex.: "amor-em-seul-t1e5.mp4")
+  // Tenta adivinhar o dorama pelo nome do arquivo (ex.: "amor-em-seul.mp4")
   const guessEpisode = (name: string, taken: Set<string>) => {
-    const n = name.toLowerCase();
-    const m = n.match(/t(\d+)\s*e(\d+)/);
-    const candidates = rows.filter((r) => !r.video && !taken.has(r.episodeId));
-    const byName =
-      m &&
-      candidates.find(
-        (r) => n.includes(r.doramaSlug) && r.season === Number(m[1]) && r.number === Number(m[2]),
-      );
-    return (byName || candidates[0])?.episodeId ?? "";
+    const n = slugify(name.replace(/\.[a-z0-9]+$/i, ""));
+    const candidates = rows.filter((r) => !taken.has(r.episodeId));
+    const byName = candidates
+      .filter((r) => n.includes(r.doramaSlug))
+      .sort((a, b) => b.doramaSlug.length - a.doramaSlug.length)[0];
+    return byName?.episodeId ?? "";
   };
 
   const enqueue = (files: FileList | File[], target?: string) => {
@@ -136,7 +132,7 @@ export function VideosManager({ initial, now: nowIso }: { initial: EpisodeRow[];
 
   return (
     <>
-      <AdminHeader title="Vídeos" description="Envie e organize os arquivos de vídeo dos episódios." />
+      <AdminHeader title="Vídeos" description="Envie e organize o vídeo de cada dorama." />
 
       {/* Resumo */}
       <div className="mb-6 grid grid-cols-3 gap-3">
@@ -169,8 +165,8 @@ export function VideosManager({ initial, now: nowIso }: { initial: EpisodeRow[];
         </span>
         <span className="font-display mt-1 text-lg font-bold">Arraste vários vídeos de uma vez</span>
         <span className="max-w-md text-sm text-fg-muted">
-          Nomeie como <code className="rounded bg-white/10 px-1 text-fg">nome-do-dorama-t1e5.mp4</code> e o
-          sistema vincula cada arquivo ao episódio certo automaticamente.
+          Nomeie como <code className="rounded bg-white/10 px-1 text-fg">nome-do-dorama.mp4</code> (o endereço da
+          página do dorama) e o sistema vincula cada arquivo ao dorama certo automaticamente.
         </span>
       </button>
       <input
@@ -239,7 +235,7 @@ export function VideosManager({ initial, now: nowIso }: { initial: EpisodeRow[];
             ]}
           />
           <SearchInput
-            placeholder="Buscar episódio ou arquivo"
+            placeholder="Buscar dorama ou arquivo"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="sm:w-72"
@@ -247,7 +243,7 @@ export function VideosManager({ initial, now: nowIso }: { initial: EpisodeRow[];
         </header>
 
         {shown.length === 0 ? (
-          <EmptyState icon={<FileVideo />} title="Nada por aqui" description="Nenhum episódio corresponde ao filtro." />
+          <EmptyState icon={<FileVideo />} title="Nada por aqui" description="Nenhum dorama corresponde ao filtro." />
         ) : (
           <ul className="divide-y divide-white/5">
             {shown.slice(0, 60).map((r) => (
@@ -262,14 +258,16 @@ export function VideosManager({ initial, now: nowIso }: { initial: EpisodeRow[];
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-bold">
-                    {label(r)} <span className="font-normal text-fg-subtle">· {r.title}</span>
+                    {label(r)}
                   </p>
                   {r.video ? (
                     <p className="truncate font-mono text-[11px] text-fg-subtle" title={r.video.key}>
                       {r.video.key} · {formatBytes(r.video.sizeBytes)} · {formatRelative(r.video.uploadedAt, now)}
                     </p>
                   ) : (
-                    <p className="text-xs text-warning">Aguardando vídeo</p>
+                    <p className={cn("text-xs", r.ready ? "text-success" : "text-warning")}>
+                      {r.ready ? "Vídeo de demonstração" : "Aguardando vídeo"}
+                    </p>
                   )}
                 </div>
                 {r.video?.status === "processando" ? (
@@ -308,7 +306,7 @@ export function VideosManager({ initial, now: nowIso }: { initial: EpisodeRow[];
         )}
         {shown.length > 60 && (
           <p className="border-t border-line px-5 py-3 text-center text-xs text-fg-subtle">
-            Mostrando 60 de {shown.length}. Use a busca para encontrar um episódio.
+            Mostrando 60 de {shown.length}. Use a busca para encontrar um dorama.
           </p>
         )}
       </section>
@@ -343,7 +341,7 @@ export function VideosManager({ initial, now: nowIso }: { initial: EpisodeRow[];
       >
         <p className="text-sm text-fg-muted">
           O arquivo de <strong className="text-fg">{toDelete && label(toDelete)}</strong> será apagado do R2.
-          O episódio continua cadastrado, mas fica indisponível até você enviar outro vídeo.
+          O dorama continua cadastrado, mas aparece como “Em breve” até você enviar outro vídeo.
         </p>
       </Modal>
     </>
@@ -415,7 +413,7 @@ function QueueRow({
             <Loader2 className="size-3.5 animate-spin" /> Finalizando
           </span>
         ) : !item.episodeId ? (
-          <span className="text-xs font-semibold text-warning">Escolha o episódio</span>
+          <span className="text-xs font-semibold text-warning">Escolha o dorama</span>
         ) : (
           <span className="text-xs font-semibold text-fg-muted tabular-nums">{Math.floor(state.percent)}%</span>
         )}
@@ -443,10 +441,10 @@ function QueueRow({
               onChange={(e) => onLink(e.target.value)}
               className="h-9 min-w-0 flex-1 rounded-lg border border-line bg-ink-850 px-2 text-sm text-fg outline-none focus:border-brand-500"
             >
-              {!item.episodeId && <option value="">Escolha o episódio</option>}
+              {!item.episodeId && <option value="">Escolha o dorama</option>}
               {options.map((r) => (
                 <option key={r.episodeId} value={r.episodeId}>
-                  {label(r)} — {r.title}
+                  {label(r)}
                 </option>
               ))}
             </select>

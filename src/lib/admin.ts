@@ -246,7 +246,11 @@ export async function getVideos(): Promise<VideoAsset[]> {
 
 export async function getDashboardStats(now: number) {
   const [doramas, users, videos] = await Promise.all([getAdminDoramas(), getUsers(), getVideos()]);
-  const episodes = doramas.flatMap((d) => d.seasons.flatMap((s) => s.episodes));
+  // Um vídeo por dorama: conta os doramas cujo vídeo ainda não foi enviado
+  const withoutVideo = doramas.filter((d) => {
+    const e = d.seasons[0]?.episodes[0];
+    return !e || (!e.available && !videos.some((v) => v.episodeId === e.id));
+  });
   const since = now - 30 * 86_400_000;
   return {
     users: users.length,
@@ -255,8 +259,8 @@ export async function getDashboardStats(now: number) {
     doramas: doramas.length,
     published: doramas.filter((d) => d.visibility === "publicado").length,
     drafts: doramas.filter((d) => d.visibility === "rascunho").length,
-    episodes: episodes.length,
-    episodesWithoutVideo: episodes.filter((e) => !e.available && !videos.some((v) => v.episodeId === e.id)).length,
+    videos: doramas.length - withoutVideo.length,
+    withoutVideo: withoutVideo.length,
     storageBytes: videos.reduce((n, v) => n + v.sizeBytes, 0),
     expiringSoon: users.filter((u) => {
       if (!u.expiresAt || u.lifetime) return false;

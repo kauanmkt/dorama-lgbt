@@ -9,7 +9,7 @@ import { concluirEnvio } from "@/lib/video-actions";
 import { formatBytes } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-export type PickedVideo = { name: string; size: number };
+export type PickedVideo = { name: string; size: number; durationSec?: number };
 
 /**
  * Seletor + envio de vídeo de um episódio (já salvo no banco).
@@ -40,7 +40,7 @@ export function VideoPicker({
         const r = await concluirEnvio({ ...upload, episodeId, fileName: f.name, size: f.size });
         if (!r.ok) return r;
       }
-      onUploaded?.(v);
+      onUploaded?.({ ...v, durationSec: upload?.durationSec });
       return { ok: true };
     });
   };

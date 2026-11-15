@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { Check, ExternalLink, Info, Loader2, Save, Send } from "lucide-react";
 import { Artwork } from "@/components/catalog/Artwork";
 import { Badge } from "@/components/ui/Badge";
@@ -22,7 +22,7 @@ import { uploadImage, type ImageKind } from "@/components/admin/image-upload";
 import { cn } from "@/lib/utils";
 import type { AdminDorama, Visibility } from "@/types/admin";
 import type { Category, Dorama } from "@/types/catalog";
-import { SeasonsManager, type EditorSeason } from "./SeasonsManager";
+import { VideoPicker, type PickedVideo } from "@/components/admin/VideoPicker";
 
 const countries = ["Coreia do Sul", "Tailândia", "Japão", "Taiwan", "China", "Filipinas", "Vietnã", "Outro"];
 const ratings: Dorama["ageRating"][] = ["L", "10", "12", "14", "16", "18"];
@@ -31,7 +31,7 @@ export type VideoMap = Record<string, { name: string; size: number; status: "pro
 
 /**
  * EDITOR DE DORAMA — usado para "Novo dorama" e "Editar dorama".
- * Tudo o que está na tela (dados, categorias, temporadas e episódios) é salvo
+ * Tudo o que está na tela (dados, categorias, duração) é salvo
  * de uma vez no banco ao clicar em Salvar/Publicar.
  */
 export function DoramaEditor({
@@ -65,30 +65,15 @@ export function DoramaEditor({
   const [bannerUrl, setBannerUrl] = useState(initial?.bannerUrl);
   const [uploading, setUploading] = useState<Record<ImageKind, boolean>>({ poster: false, banner: false });
   const [saving, startSaving] = useTransition();
-  const [seasons, setSeasons] = useState<EditorSeason[]>(
-    () =>
-      initial?.seasons.map((s) => ({
-        number: s.number,
-        episodes: s.episodes.map((e) => ({
-          id: e.id,
-          number: e.number,
-          title: e.title,
-          synopsis: e.synopsis,
-          durationMin: e.durationMin,
-          video: videos[e.id],
-          ready: e.available,
-        })),
-      })) ?? [],
-  );
+  // Cada dorama tem um único vídeo (guardado internamente como "episódio 1")
+  const main = initial?.seasons[0]?.episodes[0];
+  const [durationMin, setDurationMin] = useState(main?.durationMin ?? 0);
+  const [video, setVideo] = useState<PickedVideo | undefined>(main ? videos[main.id] : undefined);
+  const hasVideo = Boolean(video || main?.available);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const finalSlug = slugTouched ? slug : slugify(title);
   const artSeed = initial?.artSeed ?? title.length;
-
-  const counts = useMemo(() => {
-    const eps = seasons.flatMap((s) => s.episodes);
-    return { episodes: eps.length, withVideo: eps.filter((e) => e.video || e.ready).length };
-  }, [seasons]);
 
   const validate = (publishing: boolean) => {
     const e: Record<string, string> = {};
@@ -97,10 +82,6 @@ export function DoramaEditor({
     if (publishing) {
       if (!synopsis.trim()) e.synopsis = "Escreva a sinopse antes de publicar.";
       if (cats.length === 0) e.categories = "Escolha pelo menos uma categoria.";
-    }
-    const numbers = seasons.map((s) => s.episodes.map((ep) => ep.number));
-    if (numbers.some((list) => new Set(list).size !== list.length)) {
-      e.episodes = "Há episódios com o mesmo número na mesma temporada.";
     }
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -148,16 +129,7 @@ export function DoramaEditor({
         posterUrl: posterUrl?.startsWith("blob:") ? undefined : posterUrl,
         bannerUrl: bannerUrl?.startsWith("blob:") ? undefined : bannerUrl,
         categories: cats,
-        seasons: seasons.map((s) => ({
-          number: s.number,
-          episodes: s.episodes.map(({ id, number, title, synopsis, durationMin }) => ({
-            id,
-            number,
-            title,
-            synopsis,
-            durationMin,
-          })),
-        })),
+        video: { episodeId: main?.id, durationMin },
       });
       if (!r.ok) {
         toast(r.error, "error");
@@ -200,11 +172,7 @@ export function DoramaEditor({
             <Badge tone={visibility === "publicado" ? "success" : "warning"}>
               {visibility === "publicado" ? "Publicado" : "Rascunho"}
             </Badge>
-            {counts.episodes > 0 && (
-              <span>
-                {counts.episodes} episódios · {counts.withVideo} com vídeo
-              </span>
-            )}
+            {!isNew && <span>{hasVideo ? "Vídeo pronto" : "Sem vídeo"}</span>}
           </span>
         }
         actions={
@@ -323,22 +291,43 @@ export function DoramaEditor({
             {errors.categories && <p className="mt-2 text-xs font-semibold text-danger">{errors.categories}</p>}
           </Panel>
 
-          <Panel title="Temporadas e episódios" description="Adicione episódios e envie os vídeos de cada um.">
-            <SeasonsManager
-              seasons={seasons}
-              onChange={(next) => {
-                setSeasons(next);
-                setErrors((e) => ({ ...e, episodes: "" }));
-              }}
-            />
-            {seasons.some((s) => s.episodes.length > 0) && (
-              <p className="mt-3 flex items-start gap-2 text-xs text-fg-subtle">
-                <Info className="mt-0.5 size-3.5 shrink-0" />
-                Episódios sem vídeo aparecem no site como “Em breve”. Lembre de clicar em Salvar depois de
-                mexer nos episódios.
+          <Panel title="Vídeo" description="O vídeo completo do dorama. Envie em MP4 (H.264).">
+            {main && initial ? (
+              <VideoPicker
+                episodeId={main.id}
+                current={video}
+                onUploaded={(v) => {
+                  setVideo(v);
+                  if (v.durationSec) setDurationMin(Math.max(1, Math.round(v.durationSec / 60)));
+                  toast("Vídeo enviado — já disponível no site");
+                }}
+              />
+            ) : (
+              <p className="flex items-start gap-2 rounded-xl bg-white/[0.04] px-3 py-3 text-sm text-fg-muted ring-1 ring-white/10">
+                <Info className="mt-0.5 size-4 shrink-0 text-brand-300" />
+                Clique em <strong className="text-fg">Salvar rascunho</strong> primeiro — em seguida este espaço
+                libera o envio do vídeo.
               </p>
             )}
-            {errors.episodes && <p className="mt-3 text-xs font-semibold text-danger">{errors.episodes}</p>}
+            {!video && main?.available && (
+              <p className="mt-2 text-xs text-success">Este dorama já tem vídeo liberado.</p>
+            )}
+            <div className="mt-4 max-w-[200px]">
+              <TextInput
+                label="Duração (minutos)"
+                type="number"
+                min={0}
+                value={durationMin || ""}
+                onChange={(e) => setDurationMin(Number(e.target.value) || 0)}
+                hint="Preenchida sozinha ao enviar o vídeo"
+              />
+            </div>
+            {!hasVideo && !isNew && (
+              <p className="mt-3 flex items-start gap-2 text-xs text-fg-subtle">
+                <Info className="mt-0.5 size-3.5 shrink-0" />
+                Sem vídeo, o dorama aparece no site como “Em breve”.
+              </p>
+            )}
           </Panel>
         </div>
 

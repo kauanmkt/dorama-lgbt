@@ -76,10 +76,8 @@ export type DoramaInput = {
   posterUrl?: string;
   bannerUrl?: string;
   categories: string[];
-  seasons: {
-    number: number;
-    episodes: { id?: string; number: number; title: string; synopsis: string; durationMin: number }[];
-  }[];
+  /** O vídeo único do dorama (guardado internamente como "episódio 1") */
+  video: { episodeId?: string; durationMin: number };
 };
 
 export async function salvarDorama(input: DoramaInput): Promise<Result & { id?: string; slug?: string }> {
@@ -110,16 +108,20 @@ export async function salvarDorama(input: DoramaInput): Promise<Result & { id?: 
       poster_url: input.posterUrl ?? "",
       banner_url: input.bannerUrl ?? "",
       categories: input.categories,
-      seasons: input.seasons.map((s) => ({
-        number: s.number,
-        episodes: s.episodes.map((e) => ({
-          id: e.id ?? null,
-          number: Math.max(1, Math.round(e.number)),
-          title: e.title.trim(),
-          synopsis: e.synopsis.trim(),
-          duration_min: Math.max(0, Math.round(e.durationMin || 0)),
-        })),
-      })),
+      seasons: [
+        {
+          number: 1,
+          episodes: [
+            {
+              id: input.video.episodeId ?? null,
+              number: 1,
+              title: input.title.trim().slice(0, 120),
+              synopsis: "",
+              duration_min: Math.max(0, Math.round(input.video.durationMin || 0)),
+            },
+          ],
+        },
+      ],
     },
   });
   if (error) return { ok: false, error: friendly(error.message) };

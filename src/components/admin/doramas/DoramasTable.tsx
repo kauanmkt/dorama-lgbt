@@ -131,14 +131,14 @@ export function DoramasTable({
             {/* Cabeçalho da tabela (computador) */}
             <div className="hidden grid-cols-[minmax(0,1fr)_120px_110px_120px_168px] gap-4 border-b border-line px-5 py-3 text-xs font-bold tracking-wider text-fg-subtle uppercase md:grid">
               <span>Título</span>
-              <span>Episódios</span>
+              <span>Vídeo</span>
               <span>Status</span>
               <span>Atualizado</span>
               <span className="text-right">Ações</span>
             </div>
             <ul className="divide-y divide-white/5">
               {shown.map((d) => {
-                const eps = d.seasons.reduce((n, s) => n + s.episodes.length, 0);
+                const hasVideo = Boolean(d.seasons[0]?.episodes[0]?.available);
                 return (
                   <li
                     key={d.slug}
@@ -157,13 +157,13 @@ export function DoramasTable({
                           {d.categories.map(catName).join(" · ") || "Sem categoria"}
                         </p>
                         <p className="mt-1 text-xs text-fg-muted md:hidden">
-                          {d.seasons.length} temp. · {eps} ep. · {formatRelative(d.updatedAt, now)}
+                          {hasVideo ? "Com vídeo" : "Sem vídeo"} · {formatRelative(d.updatedAt, now)}
                         </p>
                       </div>
                     </Link>
 
-                    <span className="hidden text-sm text-fg-muted md:block">
-                      {eps} <span className="text-fg-subtle">({d.seasons.length} temp.)</span>
+                    <span className={`hidden text-sm md:block ${hasVideo ? "text-success" : "text-warning"}`}>
+                      {hasVideo ? "Pronto" : "Sem vídeo"}
                     </span>
                     <span className="justify-self-end md:justify-self-start">
                       <Badge tone={d.visibility === "publicado" ? "success" : "warning"}>
@@ -224,7 +224,7 @@ export function DoramasTable({
       >
         <p className="text-sm leading-relaxed text-fg-muted">
           <strong className="text-fg">{toDelete?.title}</strong> será removido do catálogo, junto com
-          as temporadas, episódios e vídeos vinculados. Essa ação não pode ser desfeita.
+          o vídeo vinculado. Essa ação não pode ser desfeita.
         </p>
       </Modal>
     </>

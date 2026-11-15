@@ -220,8 +220,9 @@ export function firstEpisode(dorama: Dorama) {
   return dorama.seasons.flatMap((s) => s.episodes).find((e) => e.available);
 }
 
-export function episodeCount(dorama: Dorama) {
-  return dorama.seasons.reduce((n, s) => n + s.episodes.length, 0);
+/** Duração do dorama em minutos (cada dorama é um vídeo único). */
+export function doramaDuration(dorama: Dorama) {
+  return dorama.seasons[0]?.episodes[0]?.durationMin ?? 0;
 }
 
 /**

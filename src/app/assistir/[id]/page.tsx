@@ -22,7 +22,7 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: PageProps<"/assistir/[id]">): Promise<Metadata> {
   const ctx = await getEpisode((await params).id);
   return ctx
-    ? { title: `${ctx.dorama.title} · T${ctx.episode.season}:E${ctx.episode.number}` }
+    ? { title: ctx.dorama.title }
     : {};
 }
 
@@ -38,9 +38,9 @@ export default async function WatchPage({ params }: PageProps<"/assistir/[id]">)
         <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-600/15 text-brand-300">
           <Clock className="size-6" />
         </span>
-        <h1 className="text-2xl font-extrabold">Episódio em breve</h1>
+        <h1 className="text-2xl font-extrabold">Em breve</h1>
         <p className="max-w-sm text-fg-muted">
-          {ctx.dorama.title} · T{ctx.episode.season}:E{ctx.episode.number} ainda não está disponível.
+          {ctx.dorama.title} ainda não está disponível para assistir.
         </p>
         <Link
           href={`/dorama/${ctx.dorama.slug}`}
@@ -104,12 +104,11 @@ async function PlayerGate({ ctx }: { ctx: EpisodeContext }) {
       </div>
     );
   }
-  const [progress, source, autoplay] = await Promise.all([
+  const [progress, source] = await Promise.all([
     getContinueWatching(50).then((list) => list.find((c) => c.episode.id === ctx.episode.id)),
     getPlaybackSource(ctx.episode.id),
-    getPublicSetting<boolean>("autoplay_next"),
   ]);
-  return <Player ctx={ctx} startPercent={progress?.percent} src={source?.url} autoplayNext={autoplay !== false} />;
+  return <Player ctx={ctx} startPercent={progress?.percent} src={source?.url} />;
 }
 
 function Loading() {
@@ -124,12 +123,10 @@ function Player({
   ctx,
   startPercent,
   src,
-  autoplayNext,
 }: {
   ctx: EpisodeContext;
   startPercent?: number;
   src?: string;
-  autoplayNext: boolean;
 }) {
   const pick = ({ id, season, number, title, durationMin }: EpisodeContext["episode"]) => ({
     id,
@@ -145,10 +142,8 @@ function Player({
       doramaTitle={ctx.dorama.title}
       artSeed={ctx.dorama.artSeed}
       episode={pick(ctx.episode)}
-      next={ctx.next ? pick(ctx.next) : undefined}
       startPercent={startPercent}
       src={src}
-      autoplayNext={autoplayNext}
     />
   );
 }

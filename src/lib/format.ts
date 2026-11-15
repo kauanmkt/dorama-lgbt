@@ -77,3 +77,12 @@ export function hashString(text: string) {
   for (let i = 0; i < text.length; i++) h = ((h << 5) + h + text.charCodeAt(i)) | 0;
   return (h >>> 0).toString(36);
 }
+
+/** "1h 45min", "52 min" (vazio se não souber a duração). */
+export function formatDuration(minutes: number) {
+  if (!minutes || minutes <= 0) return "";
+  const h = Math.floor(minutes / 60);
+  const m = Math.round(minutes % 60);
+  if (!h) return `${m} min`;
+  return m ? `${h}h ${m}min` : `${h}h`;
+}

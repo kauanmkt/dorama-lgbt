@@ -13,7 +13,6 @@ import {
   Play,
   RotateCcw,
   RotateCw,
-  SkipForward,
   Volume2,
   VolumeX,
 } from "lucide-react";
@@ -34,19 +33,15 @@ export function PlayerShell({
   doramaTitle,
   artSeed,
   episode,
-  next,
   startPercent = 0,
   src,
-  autoplayNext = true,
 }: {
   doramaSlug: string;
   doramaTitle: string;
   artSeed: number;
   episode: EpisodeInfo;
-  next?: EpisodeInfo;
   startPercent?: number;
   src?: string;
-  autoplayNext?: boolean;
 }) {
   const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -174,7 +169,6 @@ export function PlayerShell({
   }, [poke]);
 
   const pct = total ? (time / total) * 100 : 0;
-  const nearEnd = next && total - time <= 60;
 
   return (
     <div
@@ -211,10 +205,7 @@ export function PlayerShell({
             setFailed(true);
             setBuffering(false);
           }}
-          onEnded={() => {
-            save(true);
-            if (next && autoplayNext) router.push(`/assistir/${next.id}`);
-          }}
+          onEnded={() => save(true)}
           className="absolute inset-0 h-full w-full bg-black object-contain"
         />
       ) : (
@@ -272,9 +263,6 @@ export function PlayerShell({
             <p className="font-display truncate text-sm font-extrabold uppercase sm:text-base">
               {doramaTitle}
             </p>
-            <p className="truncate text-xs text-white/70 sm:text-sm">
-              T{episode.season}:E{episode.number} · {episode.title}
-            </p>
           </div>
         </div>
       </div>
@@ -305,19 +293,6 @@ export function PlayerShell({
           <RotateCw className="size-7" />
         </CenterButton>
       </div>
-
-      {/* Próximo episódio (aparece no finalzinho) */}
-      {next && (
-        <Link
-          href={`/assistir/${next.id}`}
-          className={cn(
-            "absolute right-4 bottom-28 flex items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-bold text-black shadow-2xl transition-all duration-500 hover:bg-white/85 sm:right-8",
-            nearEnd ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-4 opacity-0",
-          )}
-        >
-          <SkipForward className="size-4 fill-black" /> Próximo episódio
-        </Link>
-      )}
 
       {/* Barra inferior */}
       <div
@@ -358,19 +333,10 @@ export function PlayerShell({
             </IconButton>
 
             <p className="ml-2 hidden min-w-0 truncate text-sm font-semibold text-white/80 md:block">
-              {doramaTitle} · T{episode.season}:E{episode.number}
+              {doramaTitle}
             </p>
 
             <div className="ml-auto flex items-center gap-1 sm:gap-2">
-              {next && (
-                <Link
-                  href={`/assistir/${next.id}`}
-                  className="flex h-10 items-center gap-2 rounded-full px-3 text-sm font-semibold transition hover:bg-white/15"
-                >
-                  <SkipForward className="size-5" />
-                  <span className="hidden sm:inline">Próximo</span>
-                </Link>
-              )}
               <IconButton label={fullscreen ? "Sair da tela cheia" : "Tela cheia"} onClick={toggleFullscreen}>
                 {fullscreen ? <Minimize /> : <Maximize />}
               </IconButton>

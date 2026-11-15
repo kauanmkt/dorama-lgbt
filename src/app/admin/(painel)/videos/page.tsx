@@ -11,30 +11,29 @@ export default async function AdminVideosPage() {
   const [doramas, videos] = await Promise.all([getAdminDoramas(), getVideos()]);
   const byEpisode = new Map(videos.map((v) => [v.episodeId, v]));
 
-  const rows: EpisodeRow[] = doramas.flatMap((d) =>
-    d.seasons.flatMap((s) =>
-      s.episodes.map((e): EpisodeRow => {
-        const v = byEpisode.get(e.id);
-        return {
-          episodeId: e.id,
-          doramaTitle: d.title,
-          doramaSlug: d.slug,
-          season: s.number,
-          number: e.number,
-          title: e.title,
-          video: v && {
-            key: v.key,
-            fileName: v.fileName,
-            sizeBytes: v.sizeBytes,
-            status: v.status === "processando" ? "processando" : "pronto",
-            uploadedAt: v.uploadedAt,
-          },
-        };
-      }),
-    ),
-  );
+  // Um vídeo por dorama (o "episódio 1" interno)
+  const rows: EpisodeRow[] = doramas.flatMap((d) => {
+    const e = d.seasons[0]?.episodes[0];
+    if (!e) return [];
+    const v = byEpisode.get(e.id);
+    return [
+      {
+        episodeId: e.id,
+        doramaTitle: d.title,
+        doramaSlug: d.slug,
+        ready: e.available,
+        video: v && {
+          key: v.key,
+          fileName: v.fileName,
+          sizeBytes: v.sizeBytes,
+          status: v.status === "processando" ? "processando" : "pronto",
+          uploadedAt: v.uploadedAt,
+        },
+      },
+    ];
+  });
 
-  // Episódios sem vídeo primeiro
+  // Doramas sem vídeo primeiro
   rows.sort((a, b) => Number(Boolean(a.video)) - Number(Boolean(b.video)));
 
   return (

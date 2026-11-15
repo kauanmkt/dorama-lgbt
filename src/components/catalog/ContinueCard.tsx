@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { Play } from "lucide-react";
 import type { Dorama, Episode } from "@/types/catalog";
+import { formatDuration } from "@/lib/format";
 import { Artwork } from "./Artwork";
 
-/** Card de "Continuar Assistindo": banner do episódio com barra de progresso. */
+/** Card de "Continuar Assistindo": banner do dorama com barra de progresso. */
 export function ContinueCard({
   dorama,
   episode,
@@ -34,10 +35,9 @@ export function ContinueCard({
         </div>
       </div>
       <p className="mt-2 truncate text-sm font-semibold text-fg-muted">
-        <span className="text-fg">
-          T{episode.season}:E{episode.number}
-        </span>{" "}
-        · {episode.title}
+        {episode.durationMin > 0
+          ? `Faltam ${formatDuration(Math.max(1, Math.round(episode.durationMin * (1 - percent / 100))))}`
+          : `${Math.round(percent)}% assistido`}
       </p>
     </Link>
   );

@@ -27,7 +27,6 @@ export function SettingsManager({
   const [announcement, setAnnouncement] = useState(values.announcement);
   const [purchaseUrl, setPurchaseUrl] = useState(values.purchaseUrl);
   const [maintenance, setMaintenance] = useState(values.maintenance);
-  const [autoplayNext, setAutoplayNext] = useState(values.autoplayNext);
   const [rotation, setRotation] = useState(String(values.heroRotation));
   const [featured, setFeatured] = useState(initialFeatured);
   const [saving, startSaving] = useTransition();
@@ -40,7 +39,7 @@ export function SettingsManager({
         announcement,
         purchaseUrl,
         maintenance,
-        autoplayNext,
+        autoplayNext: values.autoplayNext,
         heroRotation: Number(rotation),
         featuredIds: featured.map((f) => f.id),
       });
@@ -85,7 +84,7 @@ export function SettingsManager({
               label="Aviso para os clientes (opcional)"
               value={announcement}
               onChange={(e) => setAnnouncement(e.target.value)}
-              placeholder="Ex.: Novo episódio de Amor em Seul toda sexta!"
+              placeholder="Ex.: Novo dorama toda sexta!"
               maxLength={160}
             />
             <TextInput
@@ -101,12 +100,6 @@ export function SettingsManager({
 
         <Panel title="Acesso e reprodução">
           <div className="space-y-5">
-            <Toggle
-              checked={autoplayNext}
-              onChange={setAutoplayNext}
-              label="Próximo episódio automático"
-              description="Começa o próximo episódio ao terminar o atual"
-            />
             <Toggle
               checked={maintenance}
               onChange={setMaintenance}

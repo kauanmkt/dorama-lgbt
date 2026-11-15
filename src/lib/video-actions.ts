@@ -114,6 +114,13 @@ export async function concluirEnvio(input: {
         : error.message,
     };
   }
+  // A duração do vídeo passa a ser a duração exibida no site
+  if (input.durationSec) {
+    await supabase
+      .from("episodes")
+      .update({ duration_min: Math.max(1, Math.round(input.durationSec / 60)) })
+      .eq("id", input.episodeId);
+  }
   // O vídeo antigo (se foi substituído) é apagado do R2
   if (previous?.storage_key && previous.storage_key !== input.key) {
     await r2.deleteObjectsQuietly([previous.storage_key]);

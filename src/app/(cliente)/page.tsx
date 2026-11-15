@@ -3,11 +3,12 @@ import { ContinueCard } from "@/components/catalog/ContinueCard";
 import { DoramaCard } from "@/components/catalog/DoramaCard";
 import { HeroCarousel, type HeroItem } from "@/components/catalog/HeroCarousel";
 import { getPublicSetting } from "@/lib/settings";
+import { formatDuration } from "@/lib/format";
 import { Rail } from "@/components/catalog/Rail";
 import { TopCard } from "@/components/catalog/TopCard";
 import {
   categoryNameFrom,
-  episodeCount,
+  doramaDuration,
   firstEpisode,
   getCategories,
   getContinueWatching,
@@ -46,7 +47,7 @@ export default async function HomePage() {
     year: d.year,
     ageRating: d.ageRating,
     categories: d.categories.map((c) => categoryNameFrom(categories, c)),
-    episodes: episodeCount(d),
+    duration: formatDuration(doramaDuration(d)),
     artSeed: d.artSeed,
     bannerUrl: d.bannerUrl,
     firstEpisodeId: firstEpisode(d)?.id,

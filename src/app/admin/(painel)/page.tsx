@@ -34,14 +34,14 @@ export default async function AdminDashboardPage() {
   const cards = [
     { label: "Usuários", value: stats.users, sub: `${stats.activeUsers} com acesso ativo`, icon: Users, href: "/admin/usuarios" },
     { label: "Doramas", value: stats.doramas, sub: `${stats.published} publicados · ${stats.drafts} rascunhos`, icon: Clapperboard, href: "/admin/doramas" },
-    { label: "Episódios", value: stats.episodes, sub: `${stats.episodesWithoutVideo} sem vídeo`, icon: Film, href: "/admin/videos" },
-    { label: "Armazenamento", value: formatBytes(stats.storageBytes), sub: stats.storageBytes ? "Vídeos no Cloudflare R2" : "Envio de vídeos na Etapa 7", icon: HardDrive, href: "/admin/videos" },
+    { label: "Vídeos", value: stats.videos, sub: `${stats.withoutVideo} doramas sem vídeo`, icon: Film, href: "/admin/videos" },
+    { label: "Armazenamento", value: formatBytes(stats.storageBytes), sub: "Vídeos no Cloudflare R2", icon: HardDrive, href: "/admin/videos" },
   ];
 
   const alerts = [
-    stats.episodesWithoutVideo > 0 && {
+    stats.withoutVideo > 0 && {
       icon: UploadCloud,
-      text: plural(stats.episodesWithoutVideo, "episódio ainda sem vídeo", "episódios ainda sem vídeo"),
+      text: plural(stats.withoutVideo, "dorama ainda sem vídeo", "doramas ainda sem vídeo"),
       href: "/admin/videos",
     },
     stats.expiringSoon > 0 && {
