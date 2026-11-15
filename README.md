@@ -14,6 +14,7 @@ Arquivos em `supabase/`:
 | `seed-demo.sql` | Catálogo, categorias e planos de demonstração (fictícios) | Opcional, para testar |
 | `remover-demo.sql` | Apaga os doramas e planos de demonstração | Antes de lançar |
 | `migrations/0002_login_por_email.sql` | Ajustes para o login só com e-mail | **Uma vez**, depois da 0001 |
+| `migrations/0003_restringir_funcoes.sql` | Funções de conta só para quem está logado | **Uma vez**, depois da 0002 |
 | `tornar-admin.sql` | Transforma uma conta em administradora | Depois de criar sua conta de admin |
 
 **Como aplicar:** Supabase → **SQL Editor** → **New query** → colar o conteúdo → **Run**.
