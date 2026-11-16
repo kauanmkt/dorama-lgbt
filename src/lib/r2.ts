@@ -121,7 +121,13 @@ export async function deleteObject(key: string) {
 
 /** Grava um arquivo pequeno (pedaço de vídeo HLS, playlist). */
 export async function putObject(key: string, body: ArrayBuffer | string, contentType: string) {
-  await call(objectUrl(key), { method: "PUT", body, headers: { "content-type": contentType } }, "gravar o arquivo");
+  // Link assinado + fetch comum: assim o tamanho (Content-Length) vai certinho
+  const url = await presign(objectUrl(key), "PUT", 900);
+  const res = await fetch(url, { method: "PUT", body, headers: { "content-type": contentType } });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`R2 recusou gravar o arquivo (${/<Code>([^<]+)/.exec(text)?.[1] ?? res.status})`);
+  }
 }
 
 /** Lê um arquivo de texto (ex.: a playlist .m3u8). */

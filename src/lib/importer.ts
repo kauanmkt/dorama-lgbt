@@ -252,7 +252,13 @@ export async function runImportWorker(budgetMs = 50_000) {
       const attempts = job.attempts + 1;
       await admin
         .from("imports")
-        .update({ attempts, error: message.slice(0, 500), locked_until: null, ...(attempts >= 8 ? { status: "erro" } : {}) })
+        .update({
+          attempts,
+          error: message.slice(0, 500),
+          // espera um pouco antes de tentar de novo (2, 4, 6… minutos)
+          locked_until: new Date(Date.now() + attempts * 120_000).toISOString(),
+          ...(attempts >= 8 ? { status: "erro" } : {}),
+        })
         .eq("id", job.id);
       summary.push({ title: job.title, result: `erro: ${message}` });
     }
