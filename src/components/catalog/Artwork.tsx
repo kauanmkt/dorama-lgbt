@@ -43,8 +43,8 @@ export function Artwork({
    * aparece inteira, sobre um fundo desfocado feito com ela mesma.
    */
   fallbackUrl?: string;
-  /** "right-mobile": capa à direita só no celular (no computador a página já mostra a capa ao lado) */
-  fallbackPosition?: "center" | "right" | "right-mobile";
+  /** "blur": só o fundo desfocado (a capa nítida aparece em outro lugar da página) */
+  fallbackPosition?: "center" | "right" | "blur";
   variant?: Variant;
   showTitle?: boolean;
   className?: string;
@@ -63,17 +63,18 @@ export function Artwork({
           loading={priority ? "eager" : "lazy"}
           className="absolute inset-0 h-full w-full scale-125 object-cover opacity-55 blur-2xl"
         />
-        {/* eslint-disable-next-line @next/next/no-img-element -- capa vertical inteira */}
-        <img
+        {fallbackPosition !== "blur" && (
+          // eslint-disable-next-line @next/next/no-img-element -- capa vertical inteira
+          <img
           src={fallbackUrl}
           alt=""
           loading={priority ? "eager" : "lazy"}
           className={cn(
             "absolute inset-y-0 h-full w-auto max-w-none object-contain",
-            fallbackPosition === "center" ? "left-1/2 -translate-x-1/2" : "right-[6%]",
-            fallbackPosition === "right-mobile" && "lg:hidden",
-          )}
-        />
+              fallbackPosition === "center" ? "left-1/2 -translate-x-1/2" : "right-[6%]",
+            )}
+          />
+        )}
       </div>
     );
   }

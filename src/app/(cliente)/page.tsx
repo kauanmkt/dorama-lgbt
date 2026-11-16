@@ -111,7 +111,7 @@ async function ContinueWatchingRail() {
   const items = await getContinueWatching();
   if (items.length === 0) return null;
   return (
-    <Rail title="Continuar assistindo" itemClassName="w-[72%] sm:w-[44%] md:w-[31%] lg:w-[23.6%] 2xl:w-[19%]">
+    <Rail title="Continuar assistindo">
       {items.map((c) => (
         <ContinueCard key={c.episode.id} dorama={c.dorama} episode={c.episode} percent={c.percent} />
       ))}

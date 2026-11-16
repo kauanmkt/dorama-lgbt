@@ -50,9 +50,8 @@ export default async function DoramaPage({ params }: PageProps<"/dorama/[slug]">
           <Artwork
             seed={dorama.artSeed}
             title={dorama.title}
-            imageUrl={dorama.bannerUrl}
             fallbackUrl={dorama.posterUrl}
-            fallbackPosition="right-mobile"
+            fallbackPosition="blur"
             variant="backdrop"
             priority
           />
@@ -60,9 +59,9 @@ export default async function DoramaPage({ params }: PageProps<"/dorama/[slug]">
           <div className="absolute inset-0 bg-gradient-to-r from-ink-950/95 via-ink-950/40 to-transparent" />
         </div>
 
-        <div className="mx-auto flex min-h-[62svh] max-w-[1600px] items-end gap-8 px-4 pt-24 pb-10 sm:px-6 md:min-h-[78svh] md:pb-16 lg:px-10">
-          {/* Capa (computador) */}
-          <div className="hidden aspect-[2/3] w-56 shrink-0 overflow-hidden rounded-2xl shadow-2xl ring-1 ring-white/15 lg:block xl:w-64">
+        <div className="mx-auto flex min-h-[62svh] max-w-[1600px] flex-col items-start gap-6 px-4 pt-24 pb-10 sm:px-6 md:min-h-[78svh] md:flex-row md:items-end md:gap-8 md:pb-16 lg:px-10">
+          {/* Capa vertical */}
+          <div className="aspect-[2/3] w-40 shrink-0 self-center overflow-hidden rounded-2xl shadow-2xl ring-1 ring-white/15 sm:w-48 md:self-auto lg:w-56 xl:w-64">
             <Artwork seed={dorama.artSeed} title={dorama.title} imageUrl={dorama.posterUrl} />
           </div>
 

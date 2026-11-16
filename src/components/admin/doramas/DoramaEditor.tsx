@@ -386,9 +386,9 @@ export function DoramaEditor({
                 preview={(initial || posterUrl) && <Artwork seed={artSeed} title={title} imageUrl={posterUrl} />}
               />
               <ImageDrop
-                label="Banner (horizontal)"
+                label="Banner (só para o destaque da tela inicial)"
                 aspect="banner"
-                hint="Recomendado: 1920×1080"
+                hint="Opcional · 1920×1080 · aparece apenas se o dorama estiver em destaque"
                 onFile={(f) => pickImage("banner", f)}
                 busy={uploading.banner}
                 preview={
