@@ -12,10 +12,10 @@ import { getPublicSetting } from "@/lib/settings";
 export const metadata: Metadata = { title: "Perfil" };
 
 const menu = [
-  { label: "Dados da conta", icon: ShieldCheck, href: "#" },
-  { label: "Telas conectadas", icon: MonitorSmartphone, href: "#" },
-  { label: "Instalar o app no celular", icon: Smartphone, href: "#" },
-  { label: "Ajuda", icon: HelpCircle, href: "#" },
+  { label: "Dados da conta", icon: ShieldCheck, href: "/perfil/conta" },
+  { label: "Telas conectadas", icon: MonitorSmartphone, href: "/perfil/telas" },
+  { label: "Instalar o app no celular", icon: Smartphone, href: "/perfil/instalar" },
+  { label: "Ajuda", icon: HelpCircle, href: "/perfil/ajuda" },
 ];
 
 export default function ProfilePage() {

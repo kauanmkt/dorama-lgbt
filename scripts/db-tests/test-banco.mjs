@@ -34,6 +34,7 @@ await db.exec(readFileSync(`${root}/supabase/migrations/0001_estrutura_inicial.s
 await db.exec(readFileSync(`${root}/supabase/migrations/0002_login_por_email.sql`, "utf8"));
 await db.exec(readFileSync(`${root}/supabase/migrations/0003_restringir_funcoes.sql`, "utf8"));
 await db.exec(readFileSync(`${root}/supabase/migrations/0004_cadastro_pelo_painel.sql`, "utf8"));
+await db.exec(readFileSync(`${root}/supabase/migrations/0009_limite_de_telas.sql`, "utf8"));
 ok(true, "migração aplicada sem erros");
 
 console.log("\n▶ Aplicando dados de demonstração (2x, para testar repetição)");
@@ -183,6 +184,29 @@ const acc = (await q("select * from public.my_access()"))[0];
 ok(acc.plan_name === "Mensal" && acc.screens === 1 && acc.has_access, `my_access(): ${acc.plan_name}, ${acc.screens} tela`);
 ok((await q("select count(*)::int n from subscriptions"))[0].n === 1, "vê só a própria assinatura");
 ok((await q("update subscriptions set expires_at = now() + interval '10 years' where user_id=$1 returning user_id", [ana])).length === 0, "não estende o próprio prazo");
+
+console.log("\n▶ Limite de telas (plano com 1 tela)");
+const ping = async (dev) => (await q("select public.playback_ping($1, null, 'teste') r", [dev]))[0].r;
+ok((await ping("celular-aaaa1")).ok === true, "1ª tela (celular) começa a assistir");
+ok((await ping("celular-aaaa1")).ok === true, "o mesmo celular renova o sinal");
+const second = await ping("tv-bbbbbbbb2");
+ok(second.ok === false && second.reason === "limite" && second.screens === 1, "2ª tela (TV) é barrada: limite de 1");
+ok((await q("select count(*)::int n from playback_sessions"))[0].n === 1, "vê só as próprias telas");
+await q("select public.playback_stop('celular-aaaa1')");
+ok((await ping("tv-bbbbbbbb2")).ok === true, "celular fecha o player → TV consegue assistir");
+await asOwner();
+await q("update subscriptions set extra_screens = 1 where user_id=$1", [ana]);
+await as("authenticated", ana);
+ok((await ping("celular-aaaa1")).ok === true, "com 1 tela extra, celular e TV juntos");
+ok((await ping("notebook-ccc3")).ok === false, "3ª tela barrada (1 + 1 extra)");
+await asOwner();
+await q("update playback_sessions set last_heartbeat_at = now() - interval '2 minutes' where device_id='tv-bbbbbbbb2'");
+await as("authenticated", ana);
+ok((await ping("notebook-ccc3")).ok === true, "tela sem sinal há 2 min é liberada sozinha");
+await as("anon");
+await expectError("select public.playback_ping('xxxxxxxxxx')", "visitante sem login não usa telas");
+await asOwner();
+await q("delete from playback_sessions"); await q("update subscriptions set extra_screens = 0");
 
 console.log("\n▶ Assinatura vencida");
 await asOwner();

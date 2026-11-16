@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
+  MonitorSmartphone,
   ArrowLeft,
   Loader2,
   Maximize,
@@ -18,6 +19,8 @@ import {
 } from "lucide-react";
 import { Artwork } from "@/components/catalog/Artwork";
 import { salvarProgresso } from "@/lib/progress-actions";
+import { pararTela, pingTela } from "@/lib/account-actions";
+import { getDeviceId } from "@/lib/device-id";
 import { cn } from "@/lib/utils";
 
 type EpisodeInfo = { id: string; season: number; number: number; title: string; durationMin: number };
@@ -53,6 +56,8 @@ export function PlayerShell({
   const [playing, setPlayingState] = useState(false);
   const [buffering, setBuffering] = useState(Boolean(src));
   const [failed, setFailed] = useState(false);
+  /** Limite de telas atingido: quantas telas o plano permite */
+  const [blocked, setBlocked] = useState<number | null>(null);
   const [muted, setMuted] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [showUi, setShowUi] = useState(true);
@@ -124,6 +129,30 @@ export function PlayerShell({
       destroy?.();
     };
   }, [src, hls]);
+
+  // ---------- Limite de telas ----------
+  const checkScreen = useCallback(async () => {
+    const r = await pingTela(getDeviceId(), episode.id, navigator.userAgent).catch(() => ({ ok: true as const }));
+    if (!r.ok && r.reason === "limite") {
+      setBlocked(r.screens ?? 1);
+      videoRef.current?.pause();
+      return false;
+    }
+    setBlocked(null);
+    return true;
+  }, [episode.id]);
+
+  useEffect(() => {
+    if (!src) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- consulta o servidor ao abrir o player
+    checkScreen();
+    const t = setInterval(checkScreen, 30_000);
+    const device = getDeviceId();
+    return () => {
+      clearInterval(t);
+      pararTela(device).catch(() => {});
+    };
+  }, [src, checkScreen]);
 
   // ---------- Progresso ----------
   const lastSaved = useRef(0);
@@ -260,6 +289,34 @@ export function PlayerShell({
       {buffering && !failed && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
           <Loader2 className="size-12 animate-spin text-brand-300" />
+        </div>
+      )}
+
+      {blocked !== null && (
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-black/90 px-6 text-center">
+          <MonitorSmartphone className="size-9 text-brand-300" />
+          <p className="text-lg font-bold">Limite de telas atingido</p>
+          <p className="max-w-sm text-sm text-white/70">
+            Seu plano permite {blocked} {blocked === 1 ? "tela assistindo" : "telas assistindo"} ao mesmo tempo, e
+            já tem outro aparelho assistindo agora.
+          </p>
+          <div className="mt-2 flex flex-wrap justify-center gap-3">
+            <button
+              type="button"
+              onClick={async () => {
+                if (await checkScreen()) videoRef.current?.play().catch(() => {});
+              }}
+              className="rounded-full bg-brand-600 px-5 py-2.5 text-sm font-bold hover:bg-brand-500"
+            >
+              Tentar de novo
+            </button>
+            <Link
+              href="/perfil/telas"
+              className="rounded-full border border-white/25 px-5 py-2.5 text-sm font-bold hover:bg-white/10"
+            >
+              Ver telas conectadas
+            </Link>
+          </div>
         </div>
       )}
 
