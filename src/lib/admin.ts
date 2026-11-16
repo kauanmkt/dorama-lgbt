@@ -136,6 +136,7 @@ export async function getAdminSettings(): Promise<Record<string, unknown>> {
 // ===== Planos e usuários: já leem do banco quando o Supabase está configurado =====
 
 type PlanRow = {
+  external_product_ids?: string[];
   id: string;
   name: string;
   description: string;
@@ -153,7 +154,7 @@ export async function getPlans(): Promise<Plan[]> {
   const supabase = await createSessionClient();
   const { data, error } = await supabase
     .from("plans")
-    .select("id, name, description, price_cents, type, duration_days, screens, active, highlight")
+    .select("id, name, description, price_cents, type, duration_days, screens, active, highlight, external_product_ids")
     .order("position")
     .order("created_at");
   if (error) throw new Error(`Erro ao ler planos: ${error.message}`);
@@ -167,6 +168,7 @@ export async function getPlans(): Promise<Plan[]> {
     screens: p.screens,
     active: p.active,
     highlight: p.highlight,
+    productIds: p.external_product_ids ?? [],
   }));
 }
 

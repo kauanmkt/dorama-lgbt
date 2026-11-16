@@ -25,6 +25,8 @@ export type Plan = {
   screens: number;
   active: boolean;
   highlight?: boolean;
+  /** IDs dos produtos na Lowify que liberam este plano */
+  productIds?: string[];
 };
 
 export type AccessStatus = "ativo" | "expirado" | "suspenso" | "sem_plano";

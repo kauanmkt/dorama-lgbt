@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Infinity as InfinityIcon, Minus, MonitorPlay, Pencil, Plus, RefreshCw, Sparkles, Users } from "lucide-react";
+import { Infinity as InfinityIcon, Link2, Minus, MonitorPlay, Pencil, Plus, RefreshCw, Sparkles, Users } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { AdminHeader, FormField, Modal, SelectInput, TextArea, TextInput, Toggle, useToast } from "@/components/admin/ui";
@@ -85,6 +85,10 @@ export function PlansManager({ initial, subscribers }: { initial: Plan[]; subscr
                 <MonitorPlay className="size-4 text-brand-300" />
                 {p.screens} {p.screens === 1 ? "tela simultânea" : "telas simultâneas"}
               </li>
+              <li className={`flex items-center gap-2 ${p.productIds?.length ? "" : "text-warning"}`}>
+                <Link2 className="size-4 text-brand-300" />
+                {p.productIds?.length ? `Lowify: produto ${p.productIds.join(", ")}` : "Sem produto da Lowify ligado"}
+              </li>
               <li className="flex items-center gap-2">
                 <Users className="size-4 text-brand-300" />
                 {subscribers[p.id] ?? 0} assinantes
@@ -146,6 +150,7 @@ function PlanModal({ initial, onClose, onSave }: { initial?: Plan; onClose: () =
   const [screens, setScreens] = useState(initial?.screens ?? 1);
   const [active, setActive] = useState(initial?.active ?? true);
   const [highlight, setHighlight] = useState(initial?.highlight ?? false);
+  const [productIds, setProductIds] = useState((initial?.productIds ?? []).join(", "));
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const submit = () => {
@@ -166,6 +171,7 @@ function PlanModal({ initial, onClose, onSave }: { initial?: Plan; onClose: () =
       screens,
       active,
       highlight,
+      productIds: productIds.split(/[\s,;]+/).filter(Boolean),
     });
   };
 
@@ -271,6 +277,16 @@ function PlanModal({ initial, onClose, onSave }: { initial?: Plan; onClose: () =
             </Button>
           </div>
         </FormField>
+
+        <div className="sm:col-span-2">
+          <TextInput
+            label="ID do produto na Lowify"
+            value={productIds}
+            onChange={(e) => setProductIds(e.target.value)}
+            placeholder="Ex.: 42 (vários: separe por vírgula)"
+            hint="Quem comprar este produto na Lowify recebe este plano automaticamente"
+          />
+        </div>
 
         <div className="space-y-4 sm:col-span-2">
           <Toggle checked={active} onChange={setActive} label="Plano ativo" description="Disponível para novas assinaturas" />

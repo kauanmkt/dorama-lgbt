@@ -16,6 +16,7 @@ Arquivos em `supabase/`:
 | `migrations/0002_login_por_email.sql` | Ajustes para o login só com e-mail | **Uma vez**, depois da 0001 |
 | `migrations/0003_restringir_funcoes.sql` | Funções de conta só para quem está logado | **Uma vez**, depois da 0002 |
 | `migrations/0004_cadastro_pelo_painel.sql` | Funções que salvam dorama/temporadas/episódios de uma vez, destaques e ordem das categorias | **Uma vez**, depois da 0003 |
+| `migrations/0006_lowify.sql` | Liga cada plano aos IDs de produto da Lowify | **Uma vez**, depois da 0005 |
 | `migrations/0005_imagens.sql` | Pasta pública `imagens` no Storage (capas e banners); só admin envia | **Uma vez**, depois da 0004 |
 | `tornar-admin.sql` | Transforma uma conta em administradora | Depois de criar sua conta de admin |
 
@@ -199,3 +200,13 @@ scripts/                    → Ferramentas (gerador de ícones)
 - [x] 8. Player e progresso de reprodução (retoma de onde parou; próximo episódio automático)
 - [ ] 9. Usuários, planos e telas simultâneas
 - [ ] 10. PWA, testes e publicação
+
+
+## Pagamentos (Lowify)
+
+- Webhook: `https://dorama-lgbt.vercel.app/api/webhooks/lowify?token=<LOWIFY_WEBHOOK_TOKEN>`
+  (a senha fica na Vercel, variável `LOWIFY_WEBHOOK_TOKEN`).
+- Venda paga → cria a conta e libera o plano ligado ao ID do produto (Painel → Planos).
+  Sem ligação: usa o plano ativo de mesmo preço, ou o único plano ativo.
+- Reembolso/chargeback → corta o acesso. Cancelamento de assinatura → vale até a data paga.
+- Todo aviso fica registrado na tabela `payments` (avisos repetidos não somam dias em dobro).

@@ -91,6 +91,7 @@ export async function salvarPlano(plan: Plan & { isNew?: boolean }): Promise<Res
     screens: Math.max(1, Math.min(20, plan.screens)),
     active: plan.active,
     highlight: plan.highlight ?? false,
+    external_product_ids: [...new Set((plan.productIds ?? []).map((x) => x.trim()).filter(Boolean))].slice(0, 20),
   };
   const { data, error } = plan.isNew
     ? await supabase.from("plans").insert(row).select("id").single()
