@@ -6,7 +6,7 @@ import { ToastProvider } from "@/components/admin/ui";
 import { requireAdmin } from "@/lib/auth";
 
 export const metadata: Metadata = {
-  title: { default: "Painel", template: "%s · Painel Dorama LGBT" },
+  title: { default: "Painel", template: "%s · Painel Amora Dramas" },
   // O painel nunca deve aparecer no Google
   robots: { index: false, follow: false },
 };

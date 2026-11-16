@@ -10,7 +10,7 @@ export function Footer() {
           <span>Privacidade</span>
           <span>Ajuda</span>
         </nav>
-        <p className="text-xs text-fg-subtle">© 2026 Dorama LGBT. Todos os direitos reservados.</p>
+        <p className="text-xs text-fg-subtle">© 2026 Amora Dramas. Todos os direitos reservados.</p>
       </div>
     </footer>
   );

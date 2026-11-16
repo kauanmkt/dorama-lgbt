@@ -254,7 +254,7 @@ export async function salvarConfiguracoes(input: SettingsInput): Promise<Result>
   }
   const supabase = await session();
   const rows = [
-    { key: "platform_name", value: input.platformName.trim() || "Dorama LGBT" },
+    { key: "platform_name", value: input.platformName.trim() || "Amora Dramas" },
     { key: "support_email", value: input.supportEmail.trim() },
     { key: "announcement", value: input.announcement.trim().slice(0, 160) },
     { key: "purchase_url", value: url },

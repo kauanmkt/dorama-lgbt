@@ -6,20 +6,22 @@
 import sharp from "sharp";
 import { mkdir, writeFile } from "node:fs/promises";
 
+// Símbolo da marca Amora Dramas: a amora (com folhinha) sobre fundo roxo-escuro.
 const mark = (pad = 0, rounded = true) => {
   const s = 512;
   const inner = s - pad * 2;
-  const k = inner / 64;
+  const k = inner / 50; // a amora ocupa uma área de 40×50 (viewBox -20 -30 40 50)
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 ${s} ${s}">
   <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#a61ff0"/><stop offset="0.55" stop-color="#8f00cc"/><stop offset="1" stop-color="#e040fb"/>
-    </linearGradient>
+    <radialGradient id="bg" cx="30%" cy="20%" r="95%"><stop offset="0" stop-color="#2A0E3F"/><stop offset="1" stop-color="#12041B"/></radialGradient>
+    <radialGradient id="g" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="#D27CF5"/><stop offset="0.55" stop-color="#8F00CC"/><stop offset="1" stop-color="#3D005C"/></radialGradient>
   </defs>
-  <rect width="${s}" height="${s}" rx="${rounded ? 128 : 0}" fill="url(#g)"/>
-  <g transform="translate(${pad} ${pad}) scale(${k})">
-    <path d="M18 14h14c11 0 18 7.6 18 18s-7 18-18 18H18z" fill="none" stroke="#fff" stroke-width="6" stroke-linejoin="round"/>
-    <path d="M28 24.5v15l11.5-7.5z" fill="#fff"/>
+  <rect width="${s}" height="${s}" rx="${rounded ? 112 : 0}" fill="url(#bg)"/>
+  <g transform="translate(${s / 2} ${s / 2 + inner * 0.06}) scale(${k * 0.74})">
+    <path d="M0 -10 C 3 -21 14 -24 19 -18 C 14 -12 6 -9 0 -10 Z" fill="#3E8A65"/>
+    <circle cx="0" cy="4" r="15" fill="url(#g)"/>
+<circle cx="-7" cy="0" r="3.3" fill="#fff" opacity="0.13"/><circle cx="2" cy="-4" r="3.3" fill="#fff" opacity="0.13"/><circle cx="8" cy="3" r="3.3" fill="#fff" opacity="0.13"/><circle cx="-3" cy="9" r="3.3" fill="#fff" opacity="0.13"/><circle cx="6" cy="12" r="3.3" fill="#fff" opacity="0.13"/><circle cx="-10" cy="10" r="3.3" fill="#fff" opacity="0.13"/><circle cx="0" cy="2" r="3.3" fill="#fff" opacity="0.13"/><circle cx="-6" cy="-6" r="3.3" fill="#fff" opacity="0.13"/>
+    <circle cx="-5" cy="-1" r="4" fill="#fff" opacity="0.4"/>
   </g>
 </svg>`;
 };

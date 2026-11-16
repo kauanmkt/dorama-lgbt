@@ -33,7 +33,7 @@ export function Header() {
       )}
     >
       <div className="mx-auto flex h-16 max-w-[1600px] items-center gap-8 px-4 sm:px-6 lg:px-10">
-        <Link href="/" aria-label="Dorama LGBT — início">
+        <Link href="/" aria-label="Amora Dramas — início">
           <Logo />
         </Link>
 

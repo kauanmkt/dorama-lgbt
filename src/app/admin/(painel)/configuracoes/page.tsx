@@ -18,7 +18,7 @@ export default async function AdminSettingsPage() {
   const str = (k: string, fallback = "") => (typeof s[k] === "string" ? (s[k] as string) : fallback);
   const bool = (k: string, fallback: boolean) => (typeof s[k] === "boolean" ? (s[k] as boolean) : fallback);
   const values: SettingsValues = {
-    platformName: str("platform_name", "Dorama LGBT"),
+    platformName: str("platform_name", "Amora Dramas"),
     supportEmail: str("support_email", "suporte@doramalgbt.com"),
     announcement: str("announcement"),
     purchaseUrl: str("purchase_url"),

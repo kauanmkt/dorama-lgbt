@@ -12,6 +12,14 @@ const sora = localFont({
   display: "swap",
 });
 
+// Fonte da marca (só a logo "amora.")
+const unbounded = localFont({
+  src: "../fonts/unbounded-latin-800-normal.woff2",
+  variable: "--font-unbounded",
+  weight: "800",
+  display: "swap",
+});
+
 const manrope = localFont({
   src: "../fonts/manrope-latin-wght-normal.woff2",
   variable: "--font-manrope",
@@ -47,7 +55,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="pt-BR"
-      className={`${sora.variable} ${manrope.variable} h-full antialiased`}
+      className={`${sora.variable} ${manrope.variable} ${unbounded.variable} h-full antialiased`}
     >
       <body className="min-h-full">{children}</body>
     </html>

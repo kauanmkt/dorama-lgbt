@@ -48,6 +48,7 @@
   /* Tipografia */
   --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-sora), var(--font-manrope), ui-sans-serif, sans-serif;
+  --font-logo: var(--font-unbounded), var(--font-sora), ui-sans-serif, sans-serif;
 
   /* Animações */
   --animate-fade-up: fade-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;

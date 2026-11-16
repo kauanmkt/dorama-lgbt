@@ -76,7 +76,7 @@ export default async function HomePage() {
         </Rail>
 
         <Rail
-          title="Top 10 no Dorama LGBT"
+          title="Top 10 no Amora"
           itemClassName="w-[52%] sm:w-[34%] md:w-[26%] lg:w-[20.5%] 2xl:w-[16.5%]"
         >
           {top.map((d, i) => (

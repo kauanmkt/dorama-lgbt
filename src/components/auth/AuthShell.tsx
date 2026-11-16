@@ -21,7 +21,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
 
       <header className="pt-safe px-5 sm:px-8">
         <div className="flex h-16 items-center">
-          <Link href="/" aria-label="Dorama LGBT — início">
+          <Link href="/" aria-label="Amora Dramas — início">
             <Logo />
           </Link>
         </div>
@@ -34,7 +34,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
       </main>
 
       <footer className="pb-safe px-5 py-6 text-center text-xs text-fg-subtle">
-        © 2026 Dorama LGBT · Termos de uso · Privacidade
+        © 2026 Amora Dramas · Termos de uso · Privacidade
       </footer>
     </div>
   );
