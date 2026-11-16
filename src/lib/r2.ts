@@ -119,10 +119,49 @@ export async function deleteObject(key: string) {
   if (!res.ok && res.status !== 404) throw new Error(`R2 recusou apagar o arquivo (${res.status})`);
 }
 
-/** Apaga vários arquivos sem interromper se algum falhar (limpeza). */
+/** Grava um arquivo pequeno (pedaço de vídeo HLS, playlist). */
+export async function putObject(key: string, body: ArrayBuffer | string, contentType: string) {
+  await call(objectUrl(key), { method: "PUT", body, headers: { "content-type": contentType } }, "gravar o arquivo");
+}
+
+/** Lê um arquivo de texto (ex.: a playlist .m3u8). */
+export async function getObjectText(key: string): Promise<string> {
+  const res = await call(objectUrl(key), { method: "GET" }, "ler o arquivo");
+  return res.text();
+}
+
+/** Lista as chaves que começam com o prefixo (ex.: "hls/abc/"). */
+async function listKeys(prefix: string): Promise<string[]> {
+  const keys: string[] = [];
+  let token: string | undefined;
+  do {
+    const u = new URL(`${endpoint}/${bucket}`);
+    u.searchParams.set("list-type", "2");
+    u.searchParams.set("prefix", prefix);
+    if (token) u.searchParams.set("continuation-token", token);
+    const xml = await (await call(u.toString(), { method: "GET" }, "listar arquivos")).text();
+    keys.push(...[...xml.matchAll(/<Key>([^<]+)<\/Key>/g)].map((m) => m[1].replace(/&amp;/g, "&")));
+    token = /<IsTruncated>true<\/IsTruncated>/.test(xml)
+      ? /<NextContinuationToken>([^<]+)<\/NextContinuationToken>/.exec(xml)?.[1]
+      : undefined;
+  } while (token);
+  return keys;
+}
+
+/**
+ * Apaga vários vídeos sem interromper se algum falhar (limpeza).
+ * Vídeo HLS (".../index.m3u8") apaga a pasta inteira de pedaços.
+ */
 export async function deleteObjectsQuietly(keys: string[]) {
   if (!isR2Configured) return;
-  await Promise.allSettled(keys.map(deleteObject));
+  await Promise.allSettled(
+    keys.map(async (key) => {
+      if (!key.endsWith(".m3u8")) return deleteObject(key);
+      const folder = key.slice(0, key.lastIndexOf("/") + 1);
+      const all = await listKeys(folder);
+      for (let i = 0; i < all.length; i += 20) await Promise.allSettled(all.slice(i, i + 20).map(deleteObject));
+    }),
+  );
 }
 
 /** Link temporário para assistir (só é gerado depois de conferir o acesso). */

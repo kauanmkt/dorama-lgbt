@@ -10,7 +10,7 @@ import { isSupabaseConfigured, supabaseKey, supabaseUrl } from "@/lib/supabase/c
  * Esta é a primeira barreira. As permissões de verdade (é admin? tem plano?)
  * são conferidas de novo no servidor e no banco (RLS).
  */
-const PUBLIC_PATHS = ["/entrar", "/admin/entrar", "/api/webhooks"];
+const PUBLIC_PATHS = ["/entrar", "/admin/entrar", "/api/webhooks", "/api/importar", "/api/hls"];
 
 export async function proxy(request: NextRequest) {
   if (!isSupabaseConfigured) return NextResponse.next(); // modo demonstração

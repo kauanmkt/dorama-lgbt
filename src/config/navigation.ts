@@ -1,6 +1,7 @@
 import {
   Bookmark,
   Clapperboard,
+  DownloadCloud,
   Film,
   FolderTree,
   Gauge,
@@ -45,6 +46,7 @@ export const adminNav: NavItem[] = [
   { label: "Doramas", href: "/admin/doramas", icon: Clapperboard, ready: true },
   { label: "Categorias", href: "/admin/categorias", icon: FolderTree, ready: true },
   { label: "Vídeos", href: "/admin/videos", icon: UploadCloud, ready: true },
+  { label: "Importação", href: "/admin/importacao", icon: DownloadCloud, ready: true },
   { label: "Usuários", href: "/admin/usuarios", icon: Users, ready: true },
   { label: "Planos", href: "/admin/planos", icon: WalletCards, ready: true },
   { label: "Configurações", href: "/admin/configuracoes", icon: Settings, ready: true },

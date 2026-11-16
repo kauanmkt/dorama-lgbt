@@ -35,6 +35,7 @@ export function PlayerShell({
   episode,
   startPercent = 0,
   src,
+  hls = false,
 }: {
   doramaSlug: string;
   doramaTitle: string;
@@ -42,6 +43,8 @@ export function PlayerShell({
   episode: EpisodeInfo;
   startPercent?: number;
   src?: string;
+  /** vídeo em pedaços (HLS) — usa hls.js onde o navegador não toca sozinho */
+  hls?: boolean;
 }) {
   const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -87,6 +90,40 @@ export function PlayerShell({
   useEffect(() => {
     if (videoRef.current) videoRef.current.muted = muted;
   }, [muted]);
+
+  // Vídeos HLS: hls.js (Chrome, Android, Windows) ou nativo (Safari/iPhone)
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!src || !hls || !video) return;
+    let destroy: (() => void) | undefined;
+    let cancelled = false;
+    import("hls.js").then(({ default: Hls }) => {
+      if (cancelled) return;
+      if (Hls.isSupported()) {
+        const player = new Hls({ maxBufferLength: 30 });
+        player.on(Hls.Events.ERROR, (_e, data) => {
+          if (!data.fatal) return;
+          if (data.type === Hls.ErrorTypes.NETWORK_ERROR) player.startLoad();
+          else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) player.recoverMediaError();
+          else {
+            setFailed(true);
+            setBuffering(false);
+          }
+        });
+        player.loadSource(src);
+        player.attachMedia(video);
+        destroy = () => player.destroy();
+      } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+        video.src = src;
+      } else {
+        setFailed(true);
+      }
+    });
+    return () => {
+      cancelled = true;
+      destroy?.();
+    };
+  }, [src, hls]);
 
   // ---------- Progresso ----------
   const lastSaved = useRef(0);
@@ -181,7 +218,7 @@ export function PlayerShell({
       {src ? (
         <video
           ref={videoRef}
-          src={src}
+          src={hls ? undefined : src}
           playsInline
           autoPlay
           preload="auto"

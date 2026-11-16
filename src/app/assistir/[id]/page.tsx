@@ -108,7 +108,7 @@ async function PlayerGate({ ctx }: { ctx: EpisodeContext }) {
     getContinueWatching(50).then((list) => list.find((c) => c.episode.id === ctx.episode.id)),
     getPlaybackSource(ctx.episode.id),
   ]);
-  return <Player ctx={ctx} startPercent={progress?.percent} src={source?.url} />;
+  return <Player ctx={ctx} startPercent={progress?.percent} src={source?.url} hls={source?.hls} />;
 }
 
 function Loading() {
@@ -123,10 +123,12 @@ function Player({
   ctx,
   startPercent,
   src,
+  hls,
 }: {
   ctx: EpisodeContext;
   startPercent?: number;
   src?: string;
+  hls?: boolean;
 }) {
   const pick = ({ id, season, number, title, durationMin }: EpisodeContext["episode"]) => ({
     id,
@@ -144,6 +146,7 @@ function Player({
       episode={pick(ctx.episode)}
       startPercent={startPercent}
       src={src}
+      hls={hls}
     />
   );
 }

@@ -9,7 +9,7 @@ import "server-only";
 import { isR2Configured, presignPlayback } from "@/lib/r2";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 
-export type PlaybackSource = { url: string; durationSec?: number };
+export type PlaybackSource = { url: string; hls?: boolean; durationSec?: number };
 
 export async function getPlaybackSource(episodeId: string): Promise<PlaybackSource | null> {
   if (!isSupabaseConfigured || !isR2Configured) return null;
@@ -21,5 +21,9 @@ export async function getPlaybackSource(episodeId: string): Promise<PlaybackSour
     .eq("status", "pronto")
     .maybeSingle();
   if (!data) return null;
+  // Vídeo em pedaços (HLS, importado): a playlist é montada na hora, com acesso conferido
+  if (data.storage_key.endsWith(".m3u8")) {
+    return { url: `/api/hls/${episodeId}`, hls: true, durationSec: data.duration_sec ?? undefined };
+  }
   return { url: await presignPlayback(data.storage_key), durationSec: data.duration_sec ?? undefined };
 }
