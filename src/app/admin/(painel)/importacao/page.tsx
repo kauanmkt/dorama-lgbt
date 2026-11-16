@@ -18,7 +18,8 @@ type Row = {
   bytes_copied: number;
   attempts: number;
   error: string | null;
-  doramas: { slug: string } | null;
+  categories: string[];
+  doramas: { slug: string; dorama_categories: { categories: { slug: string } | null }[] } | null;
 };
 
 const LABEL: Record<Row["status"], string> = {
@@ -26,7 +27,7 @@ const LABEL: Record<Row["status"], string> = {
   copiando: "Copiando",
   pronto: "Publicado",
   erro: "Erro",
-  ignorado: "Ignorado (repetido)",
+  ignorado: "Ignorado",
 };
 const TONE: Record<Row["status"], string> = {
   pendente: "text-fg-subtle",
@@ -45,23 +46,34 @@ export default async function ImportPage() {
   const supabase = await createSessionClient();
   const { data } = await supabase
     .from("imports")
-    .select("id, title, status, segments_total, segments_done, bytes_copied, attempts, error, doramas(slug)")
+    .select("id, title, status, segments_total, segments_done, bytes_copied, attempts, error, categories, doramas(slug, dorama_categories(categories(slug)))")
     .order("status")
     .order("created_at");
   const rows = (data ?? []) as unknown as Row[];
+  const { data: sync } = await supabase.from("settings").select("value").eq("key", "import_last_sync").maybeSingle();
+  const lastSync = (sync?.value as { at?: string } | null)?.at;
+  const noCategory = (r: Row) =>
+    r.status === "pronto" &&
+    !r.doramas?.dorama_categories?.some((dc) => dc.categories?.slug === "bl" || dc.categories?.slug === "gl");
 
   const count = (s: Row["status"]) => rows.filter((r) => r.status === s).length;
   const bytes = rows.reduce((a, r) => a + Number(r.bytes_copied), 0);
+  const fmt = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
   const order: Row["status"][] = ["copiando", "erro", "pendente", "pronto", "ignorado"];
-  const sorted = [...rows].sort((a, b) => order.indexOf(a.status) - order.indexOf(b.status));
+  const sorted = [...rows].sort(
+    (a, b) => order.indexOf(a.status) - order.indexOf(b.status) || Number(noCategory(b)) - Number(noCategory(a)),
+  );
   const running = count("copiando") + count("pendente") > 0;
 
   return (
     <>
       <AdminHeader
         title="Importação"
-        description="Cópia automática dos doramas LGBT do catálogo antigo. Cada dorama é publicado assim que o vídeo termina de copiar."
+        description="Cópia automática dos doramas LGBT do catálogo antigo. A cada 30 minutos o sistema procura títulos novos na seção LGBT e publica cada um assim que o vídeo termina de copiar."
       />
+      <p className="-mt-3 mb-5 text-sm text-fg-muted">
+        Última verificação: <strong className="text-fg">{lastSync ? fmt.format(new Date(lastSync)) : "ainda não rodou"}</strong>
+      </p>
       {running && <AutoRefresh seconds={20} />}
 
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-5">
@@ -101,9 +113,12 @@ export default async function ImportPage() {
                     </div>
                   )}
                   {r.error && r.status !== "pronto" && (
-                    <p className="mt-1 truncate text-xs text-danger">
-                      {r.error} {r.attempts ? `(tentativa ${r.attempts}/8)` : ""}
+                    <p className={`mt-1 truncate text-xs ${r.status === "ignorado" ? "text-fg-subtle" : "text-danger"}`}>
+                      {r.error} {r.attempts && r.status !== "ignorado" ? `(tentativa ${r.attempts}/8)` : ""}
                     </p>
+                  )}
+                  {noCategory(r) && (
+                    <p className="mt-1 text-xs text-warning">Sem BL/GL no nome: abra e escolha a categoria.</p>
                   )}
                 </div>
                 <span className={`shrink-0 text-xs font-bold ${TONE[r.status]}`}>
