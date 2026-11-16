@@ -42,10 +42,24 @@ export type PlanCandidate = {
  *  2) se nenhum estiver ligado: o único plano ativo com o mesmo preço;
  *  3) se só existir um plano ativo: ele.
  */
+/** Todos os valores de texto/número do aviso (ID do produto, da oferta, do checkout…). */
+function allValues(obj: unknown, out = new Set<string>()): Set<string> {
+  if (obj == null) return out;
+  if (typeof obj === "string" || typeof obj === "number") out.add(String(obj).trim());
+  else if (Array.isArray(obj)) obj.forEach((v) => allValues(v, out));
+  else if (typeof obj === "object") Object.values(obj as Record<string, unknown>).forEach((v) => allValues(v, out));
+  return out;
+}
+
 export function pickPlan(plans: PlanCandidate[], p: LowifyPayload, amountCents: number) {
+  // 1) ID do produto
   const productId = p.product?.id != null ? String(p.product.id).trim() : "";
   const byId = productId ? plans.find((pl) => pl.external_product_ids.includes(productId)) : undefined;
   if (byId) return byId;
+  // 1b) ID cadastrado aparece em qualquer campo do aviso (código da oferta/checkout)
+  const values = allValues(p);
+  const byAny = plans.find((pl) => pl.external_product_ids.some((id) => id.length >= 3 && values.has(id)));
+  if (byAny) return byAny;
 
   // Produtos extras (order bump/upsell) só contam se estiverem ligados a um plano
   if (p.product?.type && p.product.type !== "principal") return null;
