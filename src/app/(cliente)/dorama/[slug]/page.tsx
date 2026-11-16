@@ -80,10 +80,18 @@ export default async function DoramaPage({ params }: PageProps<"/dorama/[slug]">
             <p className="text-gradient-brand mt-3 text-base font-bold sm:text-lg">{dorama.tagline}</p>
 
             <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-semibold text-fg-muted">
-              <span>{dorama.year}</span>
-              <span aria-hidden>·</span>
-              <span>{dorama.country}</span>
-              <span aria-hidden>·</span>
+              {dorama.year ? (
+                <>
+                  <span>{dorama.year}</span>
+                  <span aria-hidden>·</span>
+                </>
+              ) : null}
+              {dorama.country && (
+                <>
+                  <span>{dorama.country}</span>
+                  <span aria-hidden>·</span>
+                </>
+              )}
               {duration && (
                 <>
                   <span>{duration}</span>
@@ -129,8 +137,8 @@ export default async function DoramaPage({ params }: PageProps<"/dorama/[slug]">
               </div>
             </InfoRow>
             {dorama.originalTitle && <InfoRow label="Título original">{dorama.originalTitle}</InfoRow>}
-            <InfoRow label="País">{dorama.country}</InfoRow>
-            <InfoRow label="Ano">{dorama.year}</InfoRow>
+            {dorama.country && <InfoRow label="País">{dorama.country}</InfoRow>}
+            {dorama.year ? <InfoRow label="Ano">{dorama.year}</InfoRow> : null}
             {duration && <InfoRow label="Duração">{duration}</InfoRow>}
             <InfoRow label="Classificação">
               {dorama.ageRating === "L" ? "Livre" : `Não recomendado para menores de ${dorama.ageRating}`}
