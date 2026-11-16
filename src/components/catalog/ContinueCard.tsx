@@ -21,6 +21,7 @@ export function ContinueCard({
           seed={dorama.artSeed}
           title={dorama.title}
           imageUrl={episode.thumbnailUrl ?? dorama.bannerUrl}
+          fallbackUrl={dorama.posterUrl}
           variant="backdrop"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />

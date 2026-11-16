@@ -32,16 +32,51 @@ export function Artwork({
   showTitle = variant === "poster",
   className,
   priority,
+  fallbackUrl,
+  fallbackPosition = "center",
 }: {
   seed: number;
   title: string;
   imageUrl?: string;
+  /**
+   * Capa vertical usada quando não há banner (ex.: doramas importados):
+   * aparece inteira, sobre um fundo desfocado feito com ela mesma.
+   */
+  fallbackUrl?: string;
+  /** "right-mobile": capa à direita só no celular (no computador a página já mostra a capa ao lado) */
+  fallbackPosition?: "center" | "right" | "right-mobile";
   variant?: Variant;
   showTitle?: boolean;
   className?: string;
   priority?: boolean;
 }) {
   const [c1, c2, c3] = palettes[seed % palettes.length];
+
+  if (!imageUrl && fallbackUrl && variant === "backdrop") {
+    return (
+      <div role="img" aria-label={title} className={cn("relative h-full w-full overflow-hidden bg-ink-950", className)}>
+        {/* eslint-disable-next-line @next/next/no-img-element -- fundo desfocado */}
+        <img
+          src={fallbackUrl}
+          alt=""
+          aria-hidden="true"
+          loading={priority ? "eager" : "lazy"}
+          className="absolute inset-0 h-full w-full scale-125 object-cover opacity-55 blur-2xl"
+        />
+        {/* eslint-disable-next-line @next/next/no-img-element -- capa vertical inteira */}
+        <img
+          src={fallbackUrl}
+          alt=""
+          loading={priority ? "eager" : "lazy"}
+          className={cn(
+            "absolute inset-y-0 h-full w-auto max-w-none object-contain",
+            fallbackPosition === "center" ? "left-1/2 -translate-x-1/2" : "right-[6%]",
+            fallbackPosition === "right-mobile" && "lg:hidden",
+          )}
+        />
+      </div>
+    );
+  }
 
   if (imageUrl) {
     return (

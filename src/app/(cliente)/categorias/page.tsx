@@ -27,7 +27,7 @@ export default async function CategoriesPage() {
             className="group relative isolate flex aspect-[16/10] flex-col justify-end overflow-hidden rounded-2xl p-4 ring-1 ring-white/10 transition hover:ring-brand-500/70 sm:p-5"
           >
             <div className="absolute inset-0 -z-10 transition-transform duration-500 group-hover:scale-105">
-              <Artwork seed={c.cover?.artSeed ?? i} title={c.name} imageUrl={c.cover?.bannerUrl} variant="backdrop" />
+              <Artwork seed={c.cover?.artSeed ?? i} title={c.name} imageUrl={c.cover?.bannerUrl} fallbackUrl={c.cover?.posterUrl} variant="backdrop" />
             </div>
             <div className="absolute inset-0 -z-10 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
             <p className="font-display text-2xl font-extrabold sm:text-3xl">{c.name}</p>

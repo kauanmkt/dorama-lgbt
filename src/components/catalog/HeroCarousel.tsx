@@ -22,6 +22,7 @@ export type HeroItem = {
   duration: string;
   artSeed: number;
   bannerUrl?: string;
+  posterUrl?: string;
   firstEpisodeId?: string;
   inMyList: boolean;
 };
@@ -64,6 +65,8 @@ export function HeroCarousel({ items, interval = 8 }: { items: HeroItem[]; inter
               seed={it.artSeed}
               title={it.title}
               imageUrl={it.bannerUrl}
+              fallbackUrl={it.posterUrl}
+              fallbackPosition="right"
               variant="backdrop"
               priority={i === 0}
               className={i === index ? "animate-[hero-zoom_12s_ease-out_both]" : undefined}

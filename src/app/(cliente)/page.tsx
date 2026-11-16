@@ -50,6 +50,7 @@ export default async function HomePage() {
     duration: formatDuration(doramaDuration(d)),
     artSeed: d.artSeed,
     bannerUrl: d.bannerUrl,
+    posterUrl: d.posterUrl,
     firstEpisodeId: firstEpisode(d)?.id,
     inMyList: false,
   }));

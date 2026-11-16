@@ -51,6 +51,8 @@ export default async function DoramaPage({ params }: PageProps<"/dorama/[slug]">
             seed={dorama.artSeed}
             title={dorama.title}
             imageUrl={dorama.bannerUrl}
+            fallbackUrl={dorama.posterUrl}
+            fallbackPosition="right-mobile"
             variant="backdrop"
             priority
           />
