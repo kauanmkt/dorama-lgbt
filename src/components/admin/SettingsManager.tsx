@@ -26,6 +26,7 @@ export function SettingsManager({
   const [supportEmail, setSupportEmail] = useState(values.supportEmail);
   const [announcement, setAnnouncement] = useState(values.announcement);
   const [purchaseUrl, setPurchaseUrl] = useState(values.purchaseUrl);
+  const [upgradeUrl, setUpgradeUrl] = useState(values.upgradeUrl);
   const [maintenance, setMaintenance] = useState(values.maintenance);
   const [rotation, setRotation] = useState(String(values.heroRotation));
   const [featured, setFeatured] = useState(initialFeatured);
@@ -39,6 +40,7 @@ export function SettingsManager({
         supportEmail,
         announcement,
         purchaseUrl,
+        upgradeUrl,
         maintenance,
         autoplayNext: values.autoplayNext,
         heroRotation: Number(rotation),
@@ -98,11 +100,19 @@ export function SettingsManager({
               hint="Aparece para quem tenta entrar sem ter um plano ativo"
             />
             <TextInput
-              label="ID do produto “Tela extra” na Lowify (order bump)"
+              label="Link de checkout do upgrade de telas"
+              type="url"
+              value={upgradeUrl}
+              onChange={(e) => setUpgradeUrl(e.target.value)}
+              placeholder="https://pay.lowify.com.br/..."
+              hint="Aparece como botão “Adicionar telas” em Perfil → Telas conectadas"
+            />
+            <TextInput
+              label="IDs dos produtos de tela extra na Lowify (order bump e upgrade)"
               value={extraIds}
               onChange={(e) => setExtraIds(e.target.value)}
-              placeholder="Ex.: 68512"
-              hint="Cada compra desse produto soma +1 tela ao plano do cliente (e o reembolso tira)"
+              placeholder="Ex.: 68512, 68530"
+              hint="Separe por vírgula. Cada compra de um desses produtos soma +1 tela ao cliente do mesmo e-mail (e o reembolso tira)"
             />
           </div>
         </Panel>

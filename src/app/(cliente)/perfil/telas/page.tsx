@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Card, SubPage } from "@/components/account/SubPage";
-import { getMyAccess } from "@/lib/auth";
+import { ExternalLink, Plus } from "lucide-react";
+import { getMyAccess, getSessionUser } from "@/lib/auth";
+import { getPublicSetting } from "@/lib/settings";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { ScreensList, type ScreenRow } from "./ScreensList";
 
@@ -21,7 +23,12 @@ export default function ScreensPage() {
 }
 
 async function ScreensContent() {
-  const [access, { rows, current }] = await Promise.all([getMyAccess(), loadScreens()]);
+  const [access, { rows, current }, upgradeUrl, user] = await Promise.all([
+    getMyAccess(),
+    loadScreens(),
+    getPublicSetting<string>("upgrade_url"),
+    getSessionUser(),
+  ]);
   const screens = access.screens || 1;
   return (
     <>
@@ -35,6 +42,36 @@ async function ScreensContent() {
         </p>
       </Card>
       <ScreensList rows={rows} current={current} />
+      {upgradeUrl?.trim() && (
+        <div className="rounded-2xl border border-brand-500/40 bg-gradient-to-br from-brand-900/60 to-ink-900 p-5">
+          <div className="flex items-start gap-3">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-brand-600">
+              <Plus className="size-5" aria-hidden="true" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="font-bold">Quer usar em mais aparelhos ao mesmo tempo?</p>
+              <p className="mt-1 text-sm text-fg-muted">
+                Adicione telas ao seu plano. Cada tela extra libera mais um aparelho conectado, sem derrubar os outros.
+              </p>
+              {user?.email && (
+                <p className="mt-2 text-sm text-fg-muted">
+                  No pagamento, use o mesmo e-mail da sua conta:{" "}
+                  <strong className="break-all text-fg">{user.email}</strong>
+                </p>
+              )}
+            </div>
+          </div>
+          <a
+            href={upgradeUrl.trim()}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-brand-600 text-sm font-bold transition hover:bg-brand-500"
+          >
+            Adicionar telas <ExternalLink className="size-4" aria-hidden="true" />
+          </a>
+          <p className="mt-2 text-center text-xs text-fg-subtle">A tela nova é liberada assim que o pagamento for aprovado.</p>
+        </div>
+      )}
     </>
   );
 }

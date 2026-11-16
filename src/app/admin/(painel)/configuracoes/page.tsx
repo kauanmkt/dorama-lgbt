@@ -22,6 +22,7 @@ export default async function AdminSettingsPage() {
     supportEmail: str("support_email", "suporte@doramalgbt.com"),
     announcement: str("announcement"),
     purchaseUrl: str("purchase_url"),
+    upgradeUrl: str("upgrade_url"),
     maintenance: bool("maintenance", false),
     autoplayNext: bool("autoplay_next", true),
     heroRotation: typeof s.hero_rotation_s === "number" ? s.hero_rotation_s : 8,

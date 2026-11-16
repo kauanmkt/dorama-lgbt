@@ -239,6 +239,8 @@ export type SettingsInput = {
   supportEmail: string;
   announcement: string;
   purchaseUrl: string;
+  /** Link de checkout do upgrade de telas (página "Telas conectadas") */
+  upgradeUrl: string;
   maintenance: boolean;
   autoplayNext: boolean;
   heroRotation: number;
@@ -254,12 +256,17 @@ export async function salvarConfiguracoes(input: SettingsInput): Promise<Result>
   if (url && !/^https?:\/\/\S+$/i.test(url)) {
     return { ok: false, error: "O link de compra precisa começar com https://" };
   }
+  const upgradeUrl = input.upgradeUrl.trim();
+  if (upgradeUrl && !/^https?:\/\/\S+$/i.test(upgradeUrl)) {
+    return { ok: false, error: "O link do upgrade de telas precisa começar com https://" };
+  }
   const supabase = await session();
   const rows = [
     { key: "platform_name", value: input.platformName.trim() || "Amora Dramas" },
     { key: "support_email", value: input.supportEmail.trim() },
     { key: "announcement", value: input.announcement.trim().slice(0, 160) },
     { key: "purchase_url", value: url },
+    { key: "upgrade_url", value: upgradeUrl },
     { key: "maintenance", value: input.maintenance },
     { key: "autoplay_next", value: input.autoplayNext },
     { key: "hero_rotation_s", value: [0, 6, 8, 12].includes(input.heroRotation) ? input.heroRotation : 8 },
