@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
-  MonitorSmartphone,
   ArrowLeft,
   Loader2,
   Maximize,
@@ -57,7 +56,6 @@ export function PlayerShell({
   const [buffering, setBuffering] = useState(Boolean(src));
   const [failed, setFailed] = useState(false);
   /** Limite de telas atingido: quantas telas o plano permite */
-  const [blocked, setBlocked] = useState<number | null>(null);
   const [muted, setMuted] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [showUi, setShowUi] = useState(true);
@@ -130,21 +128,20 @@ export function PlayerShell({
     };
   }, [src, hls]);
 
-  // ---------- Limite de telas ----------
+  // ---------- Limite de telas (por login) ----------
+  // Se a conta entrou em outro aparelho e este login caiu, para o vídeo e sai.
   const checkScreen = useCallback(async () => {
     const r = await pingTela(getDeviceId(), episode.id, navigator.userAgent).catch(() => ({ ok: true as const }));
-    if (!r.ok && r.reason === "limite") {
-      setBlocked(r.screens ?? 1);
+    if (!r.ok && r.reason === "desconectado") {
       videoRef.current?.pause();
-      return false;
+      // navegação completa: a rota apaga os cookies de login
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+      window.location.href = "/api/sessao/encerrada";
     }
-    setBlocked(null);
-    return true;
   }, [episode.id]);
 
   useEffect(() => {
     if (!src) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- consulta o servidor ao abrir o player
     checkScreen();
     const t = setInterval(checkScreen, 30_000);
     const device = getDeviceId();
@@ -292,33 +289,6 @@ export function PlayerShell({
         </div>
       )}
 
-      {blocked !== null && (
-        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-black/90 px-6 text-center">
-          <MonitorSmartphone className="size-9 text-brand-300" />
-          <p className="text-lg font-bold">Limite de telas atingido</p>
-          <p className="max-w-sm text-sm text-white/70">
-            Seu plano permite {blocked} {blocked === 1 ? "tela assistindo" : "telas assistindo"} ao mesmo tempo, e
-            já tem outro aparelho assistindo agora.
-          </p>
-          <div className="mt-2 flex flex-wrap justify-center gap-3">
-            <button
-              type="button"
-              onClick={async () => {
-                if (await checkScreen()) videoRef.current?.play().catch(() => {});
-              }}
-              className="rounded-full bg-brand-600 px-5 py-2.5 text-sm font-bold hover:bg-brand-500"
-            >
-              Tentar de novo
-            </button>
-            <Link
-              href="/perfil/telas"
-              className="rounded-full border border-white/25 px-5 py-2.5 text-sm font-bold hover:bg-white/10"
-            >
-              Ver telas conectadas
-            </Link>
-          </div>
-        </div>
-      )}
 
       {failed && (
         <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-black/85 px-6 text-center">

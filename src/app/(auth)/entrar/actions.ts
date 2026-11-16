@@ -37,6 +37,10 @@ export async function entrarComEmail(_prev: LoginState, formData: FormData): Pro
     const { data, error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: "email" });
     if (error || !data.user) return { error: "Não foi possível entrar agora. Tente novamente.", email };
     userId = data.user.id;
+    // Registra este aparelho; se passar do limite de telas, o login mais antigo cai.
+    const { headers } = await import("next/headers");
+    const agent = ((await headers()).get("user-agent") ?? "").slice(0, 300);
+    await supabase.rpc("session_login", { p_agent: agent });
   } catch (e) {
     console.error("[login]", e);
     return { error: "Não foi possível entrar agora. Tente novamente em instantes.", email };

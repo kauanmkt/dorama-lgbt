@@ -46,7 +46,7 @@ async function AccountContent() {
             <dd className="mt-0.5 font-bold">{access.lifetime ? "Para sempre (vitalício)" : formatDate(access.expiresAt)}</dd>
           </div>
           <div>
-            <dt className="text-fg-subtle">Telas ao mesmo tempo</dt>
+            <dt className="text-fg-subtle">Aparelhos conectados</dt>
             <dd className="mt-0.5 font-bold">{access.screens || "—"}</dd>
           </div>
         </dl>

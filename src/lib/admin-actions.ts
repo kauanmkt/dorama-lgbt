@@ -69,11 +69,11 @@ export async function salvarAcesso(input: {
   return error ? { ok: false, error: error.message } : { ok: true, message: "Alterações salvas" };
 }
 
-/** Encerra todas as telas abertas de um usuário. */
+/** Desconecta o cliente de todos os aparelhos (ele precisa entrar de novo). */
 export async function desconectarTelas(userId: string): Promise<Result> {
   if (!isSupabaseConfigured) return demo();
   const supabase = await session();
-  const { error } = await supabase.from("playback_sessions").delete().eq("user_id", userId);
+  const { error } = await supabase.rpc("admin_revoke_sessions", { p_user: userId });
   return error ? { ok: false, error: error.message } : { ok: true, message: "Telas desconectadas" };
 }
 

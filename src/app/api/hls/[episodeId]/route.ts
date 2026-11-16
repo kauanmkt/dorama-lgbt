@@ -9,13 +9,21 @@ import { getMyAccess, isAdmin } from "@/lib/auth";
 import { getObjectText, isR2Configured, presignPlayback } from "@/lib/r2";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+/** Este login ainda vale? (pode ter sido derrubado por outro aparelho) */
+async function sessionAlive() {
+  const { createSessionClient } = await import("@/lib/supabase/server");
+  const { data, error } = await (await createSessionClient()).rpc("session_alive");
+  return error ? true : data === true;
+}
+
 export async function GET(_req: NextRequest, ctx: RouteContext<"/api/hls/[episodeId]">) {
   const { episodeId } = await ctx.params;
   if (!isR2Configured || !/^[0-9a-f-]{36}$/.test(episodeId)) {
     return new NextResponse("Não encontrado", { status: 404 });
   }
 
-  const [access, admin] = await Promise.all([getMyAccess(), isAdmin()]);
+  const [access, admin, alive] = await Promise.all([getMyAccess(), isAdmin(), sessionAlive()]);
+  if (!alive) return new NextResponse("Login encerrado em outro aparelho", { status: 401 });
   if (!access.hasAccess && !admin) return new NextResponse("Sem acesso", { status: 403 });
 
   const { data: video } = await createAdminClient()

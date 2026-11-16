@@ -13,9 +13,9 @@ async function db() {
   return createSessionClient();
 }
 
-export type PingResult = { ok: true } | { ok: false; reason: "limite" | "sem_acesso" | "login" | "erro"; screens?: number };
+export type PingResult = { ok: true } | { ok: false; reason: "desconectado" | "login" | "erro" };
 
-/** Sinal do player: "esta tela está assistindo". */
+/** Sinal do player: "esta tela está assistindo" (e confere se o login ainda vale). */
 export async function pingTela(deviceId: string, episodeId: string | null, agent: string): Promise<PingResult> {
   if (!isSupabaseConfigured) return { ok: true };
   const supabase = await db();
@@ -35,13 +35,14 @@ export async function pararTela(deviceId: string) {
   await supabase.rpc("playback_stop", { p_device: deviceId });
 }
 
-/** Desconecta uma tela (página "Telas conectadas"). */
+/** Desconecta outro aparelho logado (página "Telas conectadas"). */
 export async function desconectarTela(sessionId: string): Promise<{ ok: boolean }> {
   if (!isSupabaseConfigured) return { ok: true };
+  if (!/^[0-9a-f-]{36}$/.test(sessionId)) return { ok: false };
   const supabase = await db();
-  const { error } = await supabase.from("playback_sessions").delete().eq("id", sessionId);
+  const { data, error } = await supabase.rpc("session_revoke", { p_session: sessionId });
   revalidatePath("/perfil/telas");
-  return { ok: !error };
+  return { ok: !error && data === true };
 }
 
 export async function atualizarNome(name: string): Promise<{ ok: boolean; error?: string }> {

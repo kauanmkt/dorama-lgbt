@@ -1,25 +1,23 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { Loader2, MonitorSmartphone } from "lucide-react";
 import { desconectarTela } from "@/lib/account-actions";
-import { describeDevice, getDeviceId } from "@/lib/device-id";
+import { describeDevice } from "@/lib/device-id";
 
-export type ScreenRow = { id: string; deviceId: string; userAgent: string | null; watching: string | null };
+export type ScreenRow = { id: string; userAgent: string | null; since: string; lastSeen: string };
 
-export function ScreensList({ rows }: { rows: ScreenRow[] }) {
+const fmt = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
+
+export function ScreensList({ rows, current }: { rows: ScreenRow[]; current: string | null }) {
   const [list, setList] = useState(rows);
-  const [mine, setMine] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
-
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- o id do aparelho só existe no navegador
-  useEffect(() => setMine(getDeviceId()), []);
 
   if (list.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-line p-8 text-center text-sm text-fg-muted">
-        Nenhuma tela assistindo agora.
+        Nenhum aparelho conectado.
       </div>
     );
   }
@@ -27,7 +25,7 @@ export function ScreensList({ rows }: { rows: ScreenRow[] }) {
   return (
     <ul className="divide-y divide-white/5 overflow-hidden rounded-2xl border border-line bg-ink-900/60">
       {list.map((r) => {
-        const isMine = r.deviceId === mine;
+        const isMine = r.id === current;
         return (
           <li key={r.id} className="flex items-center gap-4 px-5 py-4">
             <MonitorSmartphone className="size-6 shrink-0 text-brand-300" />
@@ -36,7 +34,7 @@ export function ScreensList({ rows }: { rows: ScreenRow[] }) {
                 {describeDevice(r.userAgent)}
                 {isMine && <span className="ml-2 text-xs font-bold text-success">este aparelho</span>}
               </p>
-              <p className="truncate text-xs text-fg-muted">{r.watching ? `Assistindo: ${r.watching}` : "Assistindo agora"}</p>
+              <p className="truncate text-xs text-fg-muted">Conectado desde {fmt.format(new Date(r.since))}</p>
             </div>
             {!isMine && (
               <button

@@ -16,8 +16,8 @@ const faq = [
     a: "O acesso é liberado assim que o pagamento é aprovado. Pix e cartão costumam aprovar em segundos; boleto pode levar até 2 dias úteis. Confira se digitou o e-mail exatamente como na compra.",
   },
   {
-    q: "Apareceu “limite de telas atingido”.",
-    a: "Seu plano permite um número de aparelhos assistindo ao mesmo tempo. Feche o vídeo no outro aparelho ou vá em Perfil → Telas conectadas e desconecte o aparelho que não está usando.",
+    q: "Fui desconectado sozinho. O que aconteceu?",
+    a: "Seu plano permite um número de aparelhos logados ao mesmo tempo. Quando você entra num aparelho novo, o login mais antigo é desconectado sozinho. Para usar mais aparelhos juntos, adicione telas extras. Em Perfil → Telas conectadas você vê e desconecta os aparelhos.",
   },
   {
     q: "O vídeo não carrega ou fica travando.",

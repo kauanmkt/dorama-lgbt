@@ -266,7 +266,7 @@ function PlanModal({ initial, onClose, onSave }: { initial?: Plan; onClose: () =
           </>
         )}
 
-        <FormField label="Telas simultâneas" hint="Quantos aparelhos podem assistir ao mesmo tempo">
+        <FormField label="Telas simultâneas" hint="Quantos aparelhos podem ficar logados ao mesmo tempo">
           <div className="flex h-11 items-center gap-2">
             <Button variant="outline" size="icon" aria-label="Menos" onClick={() => setScreens((s) => Math.max(1, s - 1))}>
               <Minus />

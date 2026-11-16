@@ -10,7 +10,11 @@ import { isSupabaseConfigured, supabaseKey, supabaseUrl } from "@/lib/supabase/c
  * Esta é a primeira barreira. As permissões de verdade (é admin? tem plano?)
  * são conferidas de novo no servidor e no banco (RLS).
  */
-const PUBLIC_PATHS = ["/entrar", "/admin/entrar", "/api/webhooks", "/api/importar", "/api/hls"];
+const PUBLIC_PATHS = ["/entrar", "/admin/entrar", "/api/webhooks", "/api/importar", "/api/hls", "/api/sessao"];
+
+/** De quanto em quanto tempo conferir se este login ainda vale (outro aparelho pode ter derrubado). */
+const CHECK_EVERY_MS = 60_000;
+const CHECK_COOKIE = "amora_chk";
 
 export async function proxy(request: NextRequest) {
   if (!isSupabaseConfigured) return NextResponse.next(); // modo demonstração
@@ -46,6 +50,21 @@ export async function proxy(request: NextRequest) {
   }
 
   if (loggedIn && path === "/entrar") return redirectTo("/");
+
+  // Limite de telas: se este login foi derrubado por outro aparelho, sai da conta.
+  if (loggedIn && !isPublic) {
+    const last = Number(request.cookies.get(CHECK_COOKIE)?.value ?? 0);
+    if (!last || Date.now() - last > CHECK_EVERY_MS) {
+      const { data: r, error } = await supabase.rpc("session_touch", {
+        p_agent: (request.headers.get("user-agent") ?? "").slice(0, 300),
+      });
+      const result = r as { ok: boolean; reason?: string } | null;
+      if (!error && result && !result.ok && result.reason === "desconectado") {
+        return redirectTo("/api/sessao/encerrada");
+      }
+      response.cookies.set(CHECK_COOKIE, String(Date.now()), { httpOnly: true, sameSite: "lax", secure: true, path: "/", maxAge: 600 });
+    }
+  }
 
   return response;
 }

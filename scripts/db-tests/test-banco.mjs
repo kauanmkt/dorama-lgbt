@@ -19,6 +19,10 @@ await db.exec(`
   create table auth.users (id uuid primary key default gen_random_uuid(), email text, raw_user_meta_data jsonb default '{}'::jsonb);
   create function auth.uid() returns uuid language sql stable as $$
     select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
+  create function auth.jwt() returns jsonb language sql stable as $$
+    select coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb $$;
+  create table auth.sessions (id uuid primary key default gen_random_uuid(), user_id uuid references auth.users(id) on delete cascade, created_at timestamptz default now());
+  grant execute on function auth.jwt() to anon, authenticated;
   grant usage on schema auth to anon, authenticated;
   grant execute on function auth.uid() to anon, authenticated;
   grant usage on schema public to anon, authenticated, service_role;
@@ -26,6 +30,9 @@ await db.exec(`
 
 const as = async (role, uid) => {
   await db.exec(`reset role; select set_config('request.jwt.claim.sub', '${uid ?? ""}', false); set role ${role};`);
+};
+const asSess = async (uid, sid) => {
+  await db.exec(`reset role; select set_config('request.jwt.claim.sub', '${uid}', false); select set_config('request.jwt.claims', '{"session_id":"${sid}"}', false); set role authenticated;`);
 };
 const asOwner = () => db.exec(`reset role; select set_config('request.jwt.claim.sub', '', false);`);
 
@@ -36,6 +43,7 @@ await db.exec(readFileSync(`${root}/supabase/migrations/0003_restringir_funcoes.
 await db.exec(readFileSync(`${root}/supabase/migrations/0004_cadastro_pelo_painel.sql`, "utf8"));
 await db.exec(readFileSync(`${root}/supabase/migrations/0009_limite_de_telas.sql`, "utf8"));
 await db.exec(readFileSync(`${root}/supabase/migrations/0010_suporte.sql`, "utf8"));
+await db.exec(readFileSync(`${root}/supabase/migrations/0011_telas_por_login.sql`, "utf8"));
 ok(true, "migração aplicada sem erros");
 
 console.log("\n▶ Aplicando dados de demonstração (2x, para testar repetição)");
@@ -186,28 +194,51 @@ ok(acc.plan_name === "Mensal" && acc.screens === 1 && acc.has_access, `my_access
 ok((await q("select count(*)::int n from subscriptions"))[0].n === 1, "vê só a própria assinatura");
 ok((await q("update subscriptions set expires_at = now() + interval '10 years' where user_id=$1 returning user_id", [ana])).length === 0, "não estende o próprio prazo");
 
-console.log("\n▶ Limite de telas (plano com 1 tela)");
-const ping = async (dev) => (await q("select public.playback_ping($1, null, 'teste') r", [dev]))[0].r;
-ok((await ping("celular-aaaa1")).ok === true, "1ª tela (celular) começa a assistir");
-ok((await ping("celular-aaaa1")).ok === true, "o mesmo celular renova o sinal");
-const second = await ping("tv-bbbbbbbb2");
-ok(second.ok === false && second.reason === "limite" && second.screens === 1, "2ª tela (TV) é barrada: limite de 1");
-ok((await q("select count(*)::int n from playback_sessions"))[0].n === 1, "vê só as próprias telas");
-await q("select public.playback_stop('celular-aaaa1')");
-ok((await ping("tv-bbbbbbbb2")).ok === true, "celular fecha o player → TV consegue assistir");
+console.log("\n▶ Telas = logins (plano com 1 tela)");
+await asOwner();
+const novaSessao = async (uid) => (await q("insert into auth.sessions (user_id) values ($1) returning id", [uid]))[0].id;
+const celular = await novaSessao(ana);
+await asSess(ana, celular);
+ok((await q("select public.session_login('iPhone') r"))[0].r.ok === true, "login no celular");
+ok((await q("select public.session_touch() r"))[0].r.ok === true, "celular segue logado");
+await asOwner(); const tv = await novaSessao(ana);
+await asSess(ana, tv);
+const lg = (await q("select public.session_login('TV') r"))[0].r;
+ok(lg.ok === true && lg.kicked === 1, "login na TV derruba o celular (limite 1)");
+ok((await q("select count(*)::int n from login_sessions"))[0].n === 1, "vê só o próprio login ativo");
+await asSess(ana, celular);
+const t1 = (await q("select public.session_touch() r"))[0].r;
+ok(t1.ok === false && t1.reason === "desconectado", "celular descobre que foi desconectado");
+ok((await q("select public.session_alive() a"))[0].a === false, "celular não toca mais vídeo");
+ok((await q("select public.playback_ping('celular-aaaa1') r"))[0].r.reason === "desconectado", "player do celular é avisado");
 await asOwner();
 await q("update subscriptions set extra_screens = 1 where user_id=$1", [ana]);
+const note = await novaSessao(ana);
+await asSess(ana, note);
+ok((await q("select public.session_login('Note') r"))[0].r.kicked === 0, "com 1 tela extra, TV e notebook logados juntos");
+await asSess(ana, tv);
+ok((await q("select public.session_touch() r"))[0].r.ok === true, "TV continua logada");
+ok((await q("select public.playback_ping('tv-bbbbbbbb2') r"))[0].r.ok === true, "TV assiste normalmente");
+await asOwner(); const cel2 = await novaSessao(ana);
+await asSess(ana, cel2);
+ok((await q("select public.session_login('iPhone') r"))[0].r.kicked === 1, "3º login derruba o mais antigo (TV)");
+await asSess(ana, tv);
+ok((await q("select public.session_touch() r"))[0].r.ok === false, "TV foi a desconectada");
+await asSess(ana, note);
+ok((await q("select public.session_touch() r"))[0].r.ok === true, "notebook segue logado");
+ok((await q("select public.session_revoke($1) r", [note]))[0].r === false, "não desconecta o próprio aparelho por engano");
+ok((await q("select public.session_revoke($1) r", [cel2]))[0].r === true, "desconecta outro aparelho pela página de telas");
+await asSess(ana, cel2);
+ok((await q("select public.session_touch() r"))[0].r.ok === false, "aparelho desconectado sai");
+await asOwner(); const velho = await novaSessao(beto);
+await asSess(beto, velho);
+ok((await q("select public.session_touch() r"))[0].r.ok === true, "login de antes da regra é registrado sozinho");
 await as("authenticated", ana);
-ok((await ping("celular-aaaa1")).ok === true, "com 1 tela extra, celular e TV juntos");
-ok((await ping("notebook-ccc3")).ok === false, "3ª tela barrada (1 + 1 extra)");
-await asOwner();
-await q("update playback_sessions set last_heartbeat_at = now() - interval '2 minutes' where device_id='tv-bbbbbbbb2'");
-await as("authenticated", ana);
-ok((await ping("notebook-ccc3")).ok === true, "tela sem sinal há 2 min é liberada sozinha");
+await expectError(`select public.admin_revoke_sessions('${beto}')`, "cliente não derruba logins de outra pessoa");
 await as("anon");
-await expectError("select public.playback_ping('xxxxxxxxxx')", "visitante sem login não usa telas");
+await expectError("select public.session_login()", "visitante não registra login");
 await asOwner();
-await q("delete from playback_sessions"); await q("update subscriptions set extra_screens = 0");
+await q("delete from playback_sessions"); await q("delete from login_sessions"); await q("delete from auth.sessions"); await q("update subscriptions set extra_screens = 0");
 
 console.log("\n▶ Chat de suporte");
 await as("authenticated", ana);
