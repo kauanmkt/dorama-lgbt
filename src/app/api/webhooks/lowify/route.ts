@@ -16,7 +16,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { grantAccess, isValidEmail, normalizeEmail, revokeAccess } from "@/lib/access";
-import { classify, pickPlan, type LowifyPayload, type PlanCandidate } from "@/lib/lowify";
+import { classify, matchesAnyId, pickPlan, type LowifyPayload, type PlanCandidate } from "@/lib/lowify";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 
@@ -45,8 +45,10 @@ export async function POST(req: NextRequest) {
   }
 
   const email = normalizeEmail(payload.customer?.email ?? "");
-  const orderId = String(payload.order_id ?? "").trim();
-  if (!orderId || !isValidEmail(email)) return json({ error: "Pedido sem order_id ou e-mail válido" }, 400);
+  const orderNumber = String(payload.order_id ?? "").trim();
+  // Produto principal e order bump podem vir no MESMO pedido: a chave junta os dois
+  const orderId = payload.product?.id != null ? `${orderNumber}:${payload.product.id}` : orderNumber;
+  if (!orderNumber || !isValidEmail(email)) return json({ error: "Pedido sem order_id ou e-mail válido" }, 400);
 
   const action = classify(payload);
   const admin = createAdminClient();
@@ -76,6 +78,26 @@ export async function POST(req: NextRequest) {
       : await admin.from("payments").insert(row);
     if (error) console.error(`[lowify] Erro ao registrar pedido ${orderId}: ${error.message}`);
   };
+
+  // ---- Tela extra (order bump) ----
+  const { data: extraSetting } = await admin.from("settings").select("value").eq("key", "extra_screen_product_ids").maybeSingle();
+  const extraIds = Array.isArray(extraSetting?.value) ? (extraSetting.value as unknown[]).map(String) : [];
+  if (extraIds.length && matchesAnyId(payload, extraIds) && (action === "pago" || action === "reembolso")) {
+    if (action === "pago" && existing?.status === "aprovado") return json({ ok: true, action: "ja_processado" });
+    if (action === "reembolso" && existing?.status === "reembolsado") return json({ ok: true, action: "ja_processado" });
+    const { data: profile } = await admin.from("profiles").select("id").eq("email", email).maybeSingle();
+    const { data: sub } = profile
+      ? await admin.from("subscriptions").select("extra_screens").eq("user_id", profile.id).maybeSingle()
+      : { data: null };
+    if (!profile || !sub) {
+      // O aviso do plano ainda não chegou: pede para a Lowify tentar de novo daqui a pouco
+      return json({ error: "Assinatura ainda não criada; tente novamente" }, 409);
+    }
+    const extra = Math.max(0, Math.min(20, sub.extra_screens + (action === "pago" ? 1 : -1)));
+    await admin.from("subscriptions").update({ extra_screens: extra }).eq("user_id", profile.id);
+    await record(action === "pago" ? "aprovado" : "reembolsado", null, profile.id);
+    return json({ ok: true, action: action === "pago" ? "tela_extra_adicionada" : "tela_extra_removida", extra_screens: extra });
+  }
 
   if (action === "ignorar") {
     if (!existing) await record("pendente", null, null);

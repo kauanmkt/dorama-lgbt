@@ -35,6 +35,7 @@ await db.exec(readFileSync(`${root}/supabase/migrations/0002_login_por_email.sql
 await db.exec(readFileSync(`${root}/supabase/migrations/0003_restringir_funcoes.sql`, "utf8"));
 await db.exec(readFileSync(`${root}/supabase/migrations/0004_cadastro_pelo_painel.sql`, "utf8"));
 await db.exec(readFileSync(`${root}/supabase/migrations/0009_limite_de_telas.sql`, "utf8"));
+await db.exec(readFileSync(`${root}/supabase/migrations/0010_suporte.sql`, "utf8"));
 ok(true, "migração aplicada sem erros");
 
 console.log("\n▶ Aplicando dados de demonstração (2x, para testar repetição)");
@@ -207,6 +208,25 @@ await as("anon");
 await expectError("select public.playback_ping('xxxxxxxxxx')", "visitante sem login não usa telas");
 await asOwner();
 await q("delete from playback_sessions"); await q("update subscriptions set extra_screens = 0");
+
+console.log("\n▶ Chat de suporte");
+await as("authenticated", ana);
+const tid = (await q("select public.support_send('Oi, não consigo assistir') t"))[0].t;
+ok(Boolean(tid), "cliente manda a 1ª mensagem (cria a conversa)");
+await q("select public.support_send('Alguém aí?')");
+ok((await q("select count(*)::int n from support_messages"))[0].n === 2, "cliente vê as próprias 2 mensagens");
+await expectError(`select public.support_reply('${tid}', 'me passando pelo suporte')`, "cliente não responde como suporte");
+await expectError("insert into support_messages (thread_id, sender, body) values ('" + tid + "', 'suporte', 'x')", "cliente não grava mensagem direto na tabela");
+await as("authenticated", adm);
+const th = (await q("select unread_admin from support_threads where id=$1", [tid]))[0];
+ok(th.unread_admin === 2, "admin vê a conversa com 2 não lidas");
+await q("select public.support_reply($1, 'Olá! Vamos resolver.')", [tid]);
+ok((await q("select unread_admin, unread_client from support_threads where id=$1", [tid]))[0].unread_client === 1, "admin responde; cliente tem 1 não lida");
+await as("authenticated", ana);
+ok((await q("select sender from support_messages order by created_at desc limit 1"))[0].sender === "suporte", "cliente vê a resposta do suporte");
+await q("select public.support_mark_read()");
+ok((await q("select unread_client from support_threads"))[0].unread_client === 0, "cliente marca como lida");
+await asOwner();
 
 console.log("\n▶ Assinatura vencida");
 await asOwner();

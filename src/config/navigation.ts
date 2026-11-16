@@ -7,6 +7,7 @@ import {
   Gauge,
   Home,
   Layers,
+  MessageCircle,
   Search,
   Settings,
   UploadCloud,
@@ -48,6 +49,7 @@ export const adminNav: NavItem[] = [
   { label: "Vídeos", href: "/admin/videos", icon: UploadCloud, ready: true },
   { label: "Importação", href: "/admin/importacao", icon: DownloadCloud, ready: true },
   { label: "Usuários", href: "/admin/usuarios", icon: Users, ready: true },
+  { label: "Suporte", href: "/admin/suporte", icon: MessageCircle, ready: true },
   { label: "Planos", href: "/admin/planos", icon: WalletCards, ready: true },
   { label: "Configurações", href: "/admin/configuracoes", icon: Settings, ready: true },
 ];

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { ChevronRight, HelpCircle, LogOut, MonitorSmartphone, ShieldCheck, Smartphone } from "lucide-react";
+import { ChevronRight, HelpCircle, LogOut, MessageCircle, MonitorSmartphone, ShieldCheck, Smartphone } from "lucide-react";
 import { Container } from "@/components/layout/PageIntro";
 import { Badge } from "@/components/ui/Badge";
 import { getMyAccess, getMyProfile } from "@/lib/auth";
@@ -15,6 +15,7 @@ const menu = [
   { label: "Dados da conta", icon: ShieldCheck, href: "/perfil/conta" },
   { label: "Telas conectadas", icon: MonitorSmartphone, href: "/perfil/telas" },
   { label: "Instalar o app no celular", icon: Smartphone, href: "/perfil/instalar" },
+  { label: "Falar com o suporte", icon: MessageCircle, href: "/perfil/suporte" },
   { label: "Ajuda", icon: HelpCircle, href: "/perfil/ajuda" },
 ];
 

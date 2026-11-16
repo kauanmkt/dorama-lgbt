@@ -25,6 +25,7 @@ export default async function AdminSettingsPage() {
     maintenance: bool("maintenance", false),
     autoplayNext: bool("autoplay_next", true),
     heroRotation: typeof s.hero_rotation_s === "number" ? s.hero_rotation_s : 8,
+    extraScreenIds: Array.isArray(s.extra_screen_product_ids) ? (s.extra_screen_product_ids as unknown[]).map(String) : [],
   };
 
   return (

@@ -29,6 +29,7 @@ export function SettingsManager({
   const [maintenance, setMaintenance] = useState(values.maintenance);
   const [rotation, setRotation] = useState(String(values.heroRotation));
   const [featured, setFeatured] = useState(initialFeatured);
+  const [extraIds, setExtraIds] = useState(values.extraScreenIds.join(", "));
   const [saving, startSaving] = useTransition();
 
   const save = () =>
@@ -41,6 +42,7 @@ export function SettingsManager({
         maintenance,
         autoplayNext: values.autoplayNext,
         heroRotation: Number(rotation),
+        extraScreenIds: extraIds.split(/[\s,;]+/).filter(Boolean),
         featuredIds: featured.map((f) => f.id),
       });
       if (r.ok) toast(r.message ?? "Configurações salvas");
@@ -94,6 +96,13 @@ export function SettingsManager({
               onChange={(e) => setPurchaseUrl(e.target.value)}
               placeholder="https://pay.suaplataforma.com/..."
               hint="Aparece para quem tenta entrar sem ter um plano ativo"
+            />
+            <TextInput
+              label="ID do produto “Tela extra” na Lowify (order bump)"
+              value={extraIds}
+              onChange={(e) => setExtraIds(e.target.value)}
+              placeholder="Ex.: 68512"
+              hint="Cada compra desse produto soma +1 tela ao plano do cliente (e o reembolso tira)"
             />
           </div>
         </Panel>

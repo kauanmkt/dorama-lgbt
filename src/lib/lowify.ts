@@ -51,6 +51,12 @@ function allValues(obj: unknown, out = new Set<string>()): Set<string> {
   return out;
 }
 
+/** O aviso traz algum destes IDs (produto, oferta, checkout…)? */
+export function matchesAnyId(p: LowifyPayload, ids: string[]) {
+  const values = allValues(p);
+  return ids.some((id) => id.trim().length >= 2 && values.has(id.trim()));
+}
+
 export function pickPlan(plans: PlanCandidate[], p: LowifyPayload, amountCents: number) {
   // 1) ID do produto
   const productId = p.product?.id != null ? String(p.product.id).trim() : "";

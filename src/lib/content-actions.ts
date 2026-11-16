@@ -242,6 +242,8 @@ export type SettingsInput = {
   maintenance: boolean;
   autoplayNext: boolean;
   heroRotation: number;
+  /** IDs da Lowify do produto "tela extra" (order bump) */
+  extraScreenIds: string[];
   /** ids dos doramas em destaque, na ordem do banner */
   featuredIds: string[];
 };
@@ -263,8 +265,12 @@ export async function salvarConfiguracoes(input: SettingsInput): Promise<Result>
     { key: "hero_rotation_s", value: [0, 6, 8, 12].includes(input.heroRotation) ? input.heroRotation : 8 },
   ].map((r) => ({ ...r, is_public: true }));
 
+  const extraIds = [...new Set(input.extraScreenIds.map((x) => x.trim()).filter(Boolean))].slice(0, 20);
   const [settings, featured] = await Promise.all([
-    supabase.from("settings").upsert(rows, { onConflict: "key" }),
+    supabase.from("settings").upsert(
+      [...rows, { key: "extra_screen_product_ids", value: extraIds, is_public: false }],
+      { onConflict: "key" },
+    ),
     supabase.rpc("admin_set_featured", { ids: input.featuredIds }),
   ]);
   const error = settings.error ?? featured.error;

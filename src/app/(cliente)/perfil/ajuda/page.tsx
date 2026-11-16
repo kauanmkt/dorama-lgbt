@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { Mail } from "lucide-react";
+import Link from "next/link";
+import { Mail, MessageCircle } from "lucide-react";
 import { Card, SubPage } from "@/components/account/SubPage";
 import { getPublicSetting } from "@/lib/settings";
 
@@ -20,7 +21,7 @@ const faq = [
   },
   {
     q: "O vídeo não carrega ou fica travando.",
-    a: "Confira sua internet, feche e abra o vídeo de novo. Ele continua de onde você parou. Se continuar, fale com a gente pelo e-mail abaixo dizendo o nome do dorama.",
+    a: "Confira sua internet, feche e abra o vídeo de novo. Ele continua de onde você parou. Se continuar, fale com a gente pelo chat abaixo dizendo o nome do dorama.",
   },
   {
     q: "Como renovo ou cancelo?",
@@ -43,20 +44,20 @@ export default async function HelpPage() {
           </details>
         ))}
       </div>
+      <Card className="flex items-center gap-4">
+        <MessageCircle className="size-6 shrink-0 text-brand-300" />
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold">Ainda precisa de ajuda?</p>
+          <p className="text-sm text-fg-muted">Fale com a gente pelo chat. A resposta chega aqui no app.</p>
+        </div>
+        <Link href="/perfil/suporte" className="shrink-0 rounded-full bg-brand-600 px-4 py-2 text-sm font-bold hover:bg-brand-500">
+          Abrir chat
+        </Link>
+      </Card>
       {email && (
-        <Card className="flex items-center gap-4">
-          <Mail className="size-6 shrink-0 text-brand-300" />
-          <div className="min-w-0 flex-1">
-            <p className="font-semibold">Ainda precisa de ajuda?</p>
-            <p className="truncate text-sm text-fg-muted">{email}</p>
-          </div>
-          <a
-            href={`mailto:${email}?subject=${encodeURIComponent("Ajuda — Amora Dramas")}`}
-            className="rounded-full bg-brand-600 px-4 py-2 text-sm font-bold hover:bg-brand-500"
-          >
-            Escrever
-          </a>
-        </Card>
+        <p className="flex items-center gap-2 text-xs text-fg-subtle">
+          <Mail className="size-3.5" /> Ou por e-mail: {email}
+        </p>
       )}
     </SubPage>
   );
