@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Bell, Search, User } from "lucide-react";
+import { Search, User } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { clientTopNav } from "@/config/navigation";
 import { cn } from "@/lib/utils";
 
@@ -65,13 +66,7 @@ export function Header() {
           >
             <Search className="size-5" />
           </Link>
-          <button
-            type="button"
-            aria-label="Notificações"
-            className="flex h-10 w-10 items-center justify-center rounded-full text-fg-muted transition-colors hover:bg-white/10 hover:text-fg"
-          >
-            <Bell className="size-5" />
-          </button>
+          <NotificationBell />
           <Link
             href="/perfil"
             aria-label="Minha conta"

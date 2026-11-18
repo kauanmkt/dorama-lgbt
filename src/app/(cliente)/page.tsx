@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { EnablePushBanner } from "@/components/notifications/EnablePushBanner";
 import { ContinueCard } from "@/components/catalog/ContinueCard";
 import { DoramaCard } from "@/components/catalog/DoramaCard";
 import { HeroCarousel, type HeroItem } from "@/components/catalog/HeroCarousel";
@@ -65,6 +66,8 @@ export default async function HomePage() {
       {heroItems.length > 0 ? <HeroCarousel items={heroItems} interval={heroInterval} /> : <div className="h-24" />}
 
       <div className={heroItems.length > 0 ? "relative z-10 -mt-10 space-y-8 md:-mt-16 md:space-y-10" : "space-y-8"}>
+        <EnablePushBanner className="mx-4 sm:mx-6 lg:mx-10" />
+
         <Suspense fallback={null}>
           <ContinueWatchingRail />
         </Suspense>

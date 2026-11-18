@@ -10,7 +10,7 @@ import { isSupabaseConfigured, supabaseKey, supabaseUrl } from "@/lib/supabase/c
  * Esta é a primeira barreira. As permissões de verdade (é admin? tem plano?)
  * são conferidas de novo no servidor e no banco (RLS).
  */
-const PUBLIC_PATHS = ["/entrar", "/admin/entrar", "/api/webhooks", "/api/importar", "/api/hls", "/api/sessao"];
+const PUBLIC_PATHS = ["/entrar", "/admin/entrar", "/api/webhooks", "/api/importar", "/api/hls", "/api/sessao", "/api/notificacoes"];
 
 /** De quanto em quanto tempo conferir se este login ainda vale (outro aparelho pode ter derrubado). */
 const CHECK_EVERY_MS = 60_000;
@@ -72,6 +72,6 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     // Tudo, menos arquivos estáticos, ícones e o manifesto do app
-    "/((?!_next/static|_next/image|icons/|icon\\.|apple-icon|manifest\\.webmanifest|favicon|.*\\.(?:png|jpg|jpeg|svg|webp|ico|woff2?)$).*)",
+    "/((?!_next/static|_next/image|icons/|icon\\.|apple-icon|manifest\\.webmanifest|sw\\.js|favicon|.*\\.(?:png|jpg|jpeg|svg|webp|ico|woff2?)$).*)",
   ],
 };

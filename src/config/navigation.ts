@@ -1,4 +1,5 @@
 import {
+  Bell,
   Bookmark,
   Clapperboard,
   DownloadCloud,
@@ -50,6 +51,7 @@ export const adminNav: NavItem[] = [
   { label: "Importação", href: "/admin/importacao", icon: DownloadCloud, ready: true },
   { label: "Usuários", href: "/admin/usuarios", icon: Users, ready: true },
   { label: "Suporte", href: "/admin/suporte", icon: MessageCircle, ready: true },
+  { label: "Notificações", href: "/admin/notificacoes", icon: Bell, ready: true },
   { label: "Planos", href: "/admin/planos", icon: WalletCards, ready: true },
   { label: "Configurações", href: "/admin/configuracoes", icon: Settings, ready: true },
 ];

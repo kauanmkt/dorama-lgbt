@@ -44,6 +44,7 @@ await db.exec(readFileSync(`${root}/supabase/migrations/0004_cadastro_pelo_paine
 await db.exec(readFileSync(`${root}/supabase/migrations/0009_limite_de_telas.sql`, "utf8"));
 await db.exec(readFileSync(`${root}/supabase/migrations/0010_suporte.sql`, "utf8"));
 await db.exec(readFileSync(`${root}/supabase/migrations/0011_telas_por_login.sql`, "utf8"));
+await db.exec(readFileSync(`${root}/supabase/migrations/0012_notificacoes.sql`, "utf8"));
 ok(true, "migração aplicada sem erros");
 
 console.log("\n▶ Aplicando dados de demonstração (2x, para testar repetição)");
@@ -239,6 +240,54 @@ await as("anon");
 await expectError("select public.session_login()", "visitante não registra login");
 await asOwner();
 await q("delete from playback_sessions"); await q("delete from login_sessions"); await q("delete from auth.sessions"); await q("update subscriptions set extra_screens = 0");
+
+console.log("\n▶ Notificações");
+await as("authenticated", ana);
+const ep = 'https://fcm.googleapis.com/fcm/send/abc123';
+ok((await q("select public.push_subscribe($1,'chaveP','chaveA','Android') r", [ep]))[0].r === true, "Ana ativa notificações no celular");
+ok((await q("select count(*)::int n from push_subscriptions"))[0].n === 1, "vê o próprio aparelho");
+await expectError("insert into push_subscriptions (user_id, endpoint, p256dh, auth) values ($1,'https://x','a','b')".replace("$1", `'${ana}'`), "não grava aparelho direto na tabela");
+await q("insert into notification_prefs (user_id, saudade) values ($1, false)", [ana]);
+await expectError(`insert into notification_prefs (user_id) values ('${beto}')`, "não mexe nas preferências de outra pessoa");
+await as("authenticated", beto);
+ok((await q("select count(*)::int n from push_subscriptions"))[0].n === 0, "Beto não vê o aparelho da Ana");
+ok((await q("select public.push_subscribe($1,'k2','a2','iPhone') r", [ep]))[0].r === true, "mesmo aparelho entra em outra conta");
+await asOwner();
+ok((await q("select user_id from push_subscriptions where endpoint=$1", [ep]))[0].user_id === beto, "aparelho passa para a conta nova (sem duplicar)");
+await q("update push_subscriptions set user_id=$1", [ana]);
+await as("authenticated", ana);
+await expectError("select * from public.notify_active_users()", "rotina automática não é chamável pelo cliente");
+await asOwner();
+// continuar assistindo: Ana parou em 40% há 1 dia
+await q("alter table watch_progress disable trigger watch_progress_updated_at");
+await q("update watch_progress set position_sec=1080, duration_sec=2700, completed=false, updated_at=now()-interval '1 day' where user_id=$1", [ana]);
+const cont = await q("select * from public.notify_continue_candidates()");
+ok(cont.length === 1 && cont[0].user_id === ana && cont[0].pct === 40, "Ana entra no lembrete de continuar (40%)");
+await q("insert into notifications (user_id, kind, ref, title) values ($1,'continuar',$2,'x')", [ana, cont[0].ref]);
+ok((await q("select * from public.notify_continue_candidates()")).length === 0, "não lembra de novo no mesmo dia");
+await expectError(`insert into notifications (user_id, kind, ref, title) values ('${ana}','continuar','${cont[0].ref}','x')`, "a mesma notificação nunca é gravada duas vezes");
+await q("update watch_progress set updated_at=now()-interval '2 hours' where user_id=$1", [ana]);
+await q("delete from notifications");
+ok((await q("select * from public.notify_continue_candidates()")).length === 0, "não lembra quem parou há poucas horas");
+// saudade: Ana desligou; Beto não tem app
+await q("alter table watch_progress enable trigger watch_progress_updated_at");
+await q("update profiles set last_seen_at=now()-interval '9 days'");
+ok((await q("select * from public.notify_comeback_candidates()")).length === 0, "saudade respeita a preferência e exige o app instalado");
+await q("update notification_prefs set saudade=true where user_id=$1", [ana]);
+const cb = await q("select * from public.notify_comeback_candidates()");
+ok(cb.length === 1 && cb[0].days === 9, "Ana (9 dias sumida) recebe saudade");
+const rec = (await q("select * from public.notify_recipients('lancamento')")).map((r) => r.user_id);
+ok(rec.includes(ana) && rec.includes(adm), "lançamento vai para quem tem acesso (cliente e admin)");
+await q("update notification_prefs set lancamentos=false where user_id=$1", [ana]);
+ok(!(await q("select * from public.notify_recipients('lancamento')")).some((r) => r.user_id === ana), "quem desligou lançamentos não recebe");
+await q("insert into notifications (user_id, kind, title) values ($1,'aviso','Promo'), ($1,'aviso','Novo'), ($2,'aviso','Do Beto')", [ana, beto]);
+await as("authenticated", ana);
+ok((await q("select count(*)::int n from notifications"))[0].n === 2, "sino mostra só as notificações da Ana");
+ok((await q("select public.notifications_mark_read() n"))[0].n === 2, "marca tudo como lido");
+await asOwner();
+ok((await q("select read_at from notifications where user_id=$1", [beto]))[0].read_at === null, "não marca as do Beto");
+ok((await q("select count(*)::int n from doramas where visibility='publicado' and release_notified_at is null"))[0].n > 0, "dorama publicado depois da migração fica esperando o aviso de lançamento");
+await q("delete from notifications"); await q("delete from push_subscriptions"); await q("delete from notification_prefs");
 
 console.log("\n▶ Chat de suporte");
 await as("authenticated", ana);
