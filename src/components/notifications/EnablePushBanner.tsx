@@ -21,7 +21,7 @@ export function EnablePushBanner({ className = "" }: { className?: string }) {
     } catch {}
     if (Date.now() - dismissedAt < 7 * 86_400_000) return;
     getPushState()
-      .then((s) => setShow(s === "desligado" || s === "instalar-iphone"))
+      .then((s) => setShow(s === "desligado")) // iPhone sem o app: o alerta de instalar cuida disso
       .catch(() => {});
   }, []);
 

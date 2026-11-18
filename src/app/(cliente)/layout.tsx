@@ -1,5 +1,6 @@
 import { AnnouncementBar } from "@/components/layout/AnnouncementBar";
 import { BottomNav } from "@/components/layout/BottomNav";
+import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { Footer } from "@/components/layout/Footer";
 import { Header } from "@/components/layout/Header";
 import { getPublicSetting } from "@/lib/settings";
@@ -16,6 +17,7 @@ export default async function ClienteLayout({ children }: { children: React.Reac
       <main className="min-h-dvh">{children}</main>
       <Footer />
       <BottomNav />
+      <InstallPrompt />
       {announcement && <AnnouncementBar text={announcement} />}
     </>
   );
