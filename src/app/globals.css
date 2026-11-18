@@ -106,6 +106,19 @@
     color-scheme: dark;
     background-color: var(--color-ink-950);
     -webkit-tap-highlight-color: transparent;
+    /* sem zoom de toque duplo; o texto não aumenta sozinho ao girar o celular */
+    touch-action: manipulation;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  /* No iPhone, campos com letra menor que 16px dão zoom ao tocar: no celular, 16px */
+  @media (max-width: 767px) {
+    input,
+    select,
+    textarea {
+      font-size: 16px !important;
+    }
   }
 
   body {

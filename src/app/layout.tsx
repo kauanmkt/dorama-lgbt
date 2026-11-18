@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { siteConfig } from "@/config/site";
+import { NoZoom } from "@/components/pwa/NoZoom";
 import "./globals.css";
 
 // Fontes ficam dentro do projeto (sem depender do Google Fonts):
@@ -48,6 +49,9 @@ export const viewport: Viewport = {
   colorScheme: "dark",
   width: "device-width",
   initialScale: 1,
+  // App sem zoom (pinça e toque duplo), como um app nativo
+  maximumScale: 1,
+  userScalable: false,
   viewportFit: "cover",
 };
 
@@ -57,7 +61,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="pt-BR"
       className={`${sora.variable} ${manrope.variable} ${unbounded.variable} h-full antialiased`}
     >
-      <body className="min-h-full">{children}</body>
+      <body className="min-h-full">
+        <NoZoom />
+        {children}
+      </body>
     </html>
   );
 }
