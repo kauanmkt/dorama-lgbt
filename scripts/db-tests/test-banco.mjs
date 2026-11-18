@@ -45,6 +45,7 @@ await db.exec(readFileSync(`${root}/supabase/migrations/0009_limite_de_telas.sql
 await db.exec(readFileSync(`${root}/supabase/migrations/0010_suporte.sql`, "utf8"));
 await db.exec(readFileSync(`${root}/supabase/migrations/0011_telas_por_login.sql`, "utf8"));
 await db.exec(readFileSync(`${root}/supabase/migrations/0012_notificacoes.sql`, "utf8"));
+await db.exec(readFileSync(`${root}/supabase/migrations/0013_classificacao_18.sql`, "utf8"));
 ok(true, "migração aplicada sem erros");
 
 console.log("\n▶ Aplicando dados de demonstração (2x, para testar repetição)");
@@ -288,6 +289,11 @@ await asOwner();
 ok((await q("select read_at from notifications where user_id=$1", [beto]))[0].read_at === null, "não marca as do Beto");
 ok((await q("select count(*)::int n from doramas where visibility='publicado' and release_notified_at is null"))[0].n > 0, "dorama publicado depois da migração fica esperando o aviso de lançamento");
 await q("delete from notifications"); await q("delete from push_subscriptions"); await q("delete from notification_prefs");
+
+console.log("\n▶ Classificação 18+");
+await asOwner();
+ok((await q("select pg_get_functiondef('public.admin_save_dorama(jsonb)'::regprocedure) f"))[0].f.includes("'age_rating', '18'"), "cadastro pelo painel usa 18+ quando não informado");
+ok((await q("select column_default d from information_schema.columns where table_name='doramas' and column_name='age_rating'"))[0].d.includes("18"), "dorama novo nasce 18+");
 
 console.log("\n▶ Chat de suporte");
 await as("authenticated", ana);

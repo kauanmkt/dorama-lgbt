@@ -55,7 +55,7 @@ export function DoramaEditor({
   const [synopsis, setSynopsis] = useState(initial?.synopsis ?? "");
   const [year, setYear] = useState(initial?.year ?? NOW.getFullYear());
   const [country, setCountry] = useState(initial?.country ?? countries[0]);
-  const [ageRating, setAgeRating] = useState<Dorama["ageRating"]>(initial?.ageRating ?? "14");
+  const [ageRating, setAgeRating] = useState<Dorama["ageRating"]>(initial?.ageRating ?? "18");
   const [status, setStatus] = useState<Dorama["status"]>(initial?.status ?? "em_exibicao");
   const [cats, setCats] = useState<string[]>(initial?.categories ?? []);
   const [featured, setFeatured] = useState(Boolean(initial?.isFeatured));
