@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
   // Pedido já registrado?
   const { data: existing } = await admin
     .from("payments")
-    .select("id, status, plan_id, user_id")
+    .select("id, status, plan_id, user_id, paid_at")
     .eq("provider", PROVIDER)
     .eq("external_id", orderId)
     .maybeSingle();
@@ -135,8 +135,13 @@ export async function POST(req: NextRequest) {
   }
 
   // ---- Venda paga ----
+  // Aviso repetido (minutos/horas depois) não soma dias de novo. Mas na assinatura
+  // recorrente (Pix automático/cartão) a Lowify pode mandar a RENOVAÇÃO com o mesmo
+  // número de pedido: se o último pagamento desse pedido foi há 20+ dias, é renovação.
   if (existing?.status === "aprovado") {
-    return json({ ok: true, action: "ja_processado" }); // aviso repetido: não soma dias de novo
+    const lastPaid = existing.paid_at ? Date.parse(existing.paid_at) : NaN;
+    const isRenewal = Number.isFinite(lastPaid) && Date.now() - lastPaid > 20 * 86_400_000;
+    if (!isRenewal) return json({ ok: true, action: "ja_processado" });
   }
 
   const { data: plans } = await admin
