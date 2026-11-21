@@ -105,7 +105,7 @@ export async function notify(
   const options_ = {
     // "subject" = como o serviço de push nos identifica: o endereço do site (a Vercel informa)
     vapidDetails: {
-      subject: `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL || "dorama-lgbt.vercel.app"}`,
+      subject: `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL || "amoradramas.app"}`,
       publicKey: keys.publicKey,
       privateKey: keys.privateKey,
     },

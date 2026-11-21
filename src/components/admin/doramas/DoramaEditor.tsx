@@ -205,7 +205,7 @@ export function DoramaEditor({
                   setSlugTouched(true);
                   setSlug(slugify(e.target.value));
                 }}
-                hint={<>dorama-lgbt.vercel.app/dorama/<strong className="text-fg-muted">{finalSlug || "..."}</strong></>}
+                hint={<>amoradramas.app/dorama/<strong className="text-fg-muted">{finalSlug || "..."}</strong></>}
                 error={errors.slug}
               />
               <TextInput
