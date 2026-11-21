@@ -79,6 +79,25 @@ export async function POST(req: NextRequest) {
     if (error) console.error(`[lowify] Erro ao registrar pedido ${orderId}: ${error.message}`);
   };
 
+  // ---- "Assista na televisão" (order bump) ----
+  const { data: tvSetting } = await admin.from("settings").select("value").eq("key", "tv_product_ids").maybeSingle();
+  const tvIds = Array.isArray(tvSetting?.value) ? (tvSetting.value as unknown[]).map(String) : [];
+  if (tvIds.length && matchesAnyId(payload, tvIds) && (action === "pago" || action === "reembolso")) {
+    if (action === "pago" && existing?.status === "aprovado") return json({ ok: true, action: "ja_processado" });
+    if (action === "reembolso" && existing?.status === "reembolsado") return json({ ok: true, action: "ja_processado" });
+    const { data: profile } = await admin.from("profiles").select("id").eq("email", email).maybeSingle();
+    const { data: sub } = profile
+      ? await admin.from("subscriptions").select("user_id").eq("user_id", profile.id).maybeSingle()
+      : { data: null };
+    if (!profile || !sub) {
+      // O aviso do plano ainda não chegou: pede para a Lowify tentar de novo daqui a pouco
+      return json({ error: "Assinatura ainda não criada; tente novamente" }, 409);
+    }
+    await admin.from("subscriptions").update({ tv_access: action === "pago" }).eq("user_id", profile.id);
+    await record(action === "pago" ? "aprovado" : "reembolsado", null, profile.id);
+    return json({ ok: true, action: action === "pago" ? "tv_liberada" : "tv_removida" });
+  }
+
   // ---- Tela extra (order bump) ----
   const { data: extraSetting } = await admin.from("settings").select("value").eq("key", "extra_screen_product_ids").maybeSingle();
   const extraIds = Array.isArray(extraSetting?.value) ? (extraSetting.value as unknown[]).map(String) : [];

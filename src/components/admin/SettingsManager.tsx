@@ -31,6 +31,8 @@ export function SettingsManager({
   const [rotation, setRotation] = useState(String(values.heroRotation));
   const [featured, setFeatured] = useState(initialFeatured);
   const [extraIds, setExtraIds] = useState(values.extraScreenIds.join(", "));
+  const [tvIds, setTvIds] = useState(values.tvProductIds.join(", "));
+  const [tvUrl, setTvUrl] = useState(values.tvUpgradeUrl);
   const [saving, startSaving] = useTransition();
 
   const save = () =>
@@ -45,6 +47,8 @@ export function SettingsManager({
         autoplayNext: values.autoplayNext,
         heroRotation: Number(rotation),
         extraScreenIds: extraIds.split(/[\s,;]+/).filter(Boolean),
+        tvProductIds: tvIds.split(/[\s,;]+/).filter(Boolean),
+        tvUpgradeUrl: tvUrl,
         featuredIds: featured.map((f) => f.id),
       });
       if (r.ok) toast(r.message ?? "Configurações salvas");
@@ -113,6 +117,21 @@ export function SettingsManager({
               onChange={(e) => setExtraIds(e.target.value)}
               placeholder="Ex.: 68512, 68530"
               hint="Separe por vírgula. Cada compra de um desses produtos soma +1 tela ao cliente do mesmo e-mail (e o reembolso tira)"
+            />
+            <TextInput
+              label="ID do produto “Assista na televisão” na Lowify"
+              value={tvIds}
+              onChange={(e) => setTvIds(e.target.value)}
+              placeholder="Ex.: 68571"
+              hint="Quem compra ganha o tutorial de como assistir na TV (e o reembolso tira)"
+            />
+            <TextInput
+              label="Link de checkout do “Assista na televisão”"
+              type="url"
+              value={tvUrl}
+              onChange={(e) => setTvUrl(e.target.value)}
+              placeholder="https://checkout.lowify.com.br/..."
+              hint="Aparece para quem ainda não tem, em Perfil → Assistir na TV"
             />
           </div>
         </Panel>

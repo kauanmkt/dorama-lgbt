@@ -82,6 +82,7 @@ export const mockUsers: AdminUser[] = [
     lifetime: true,
     suspended: false,
     extraScreens: 0,
+    tvAccess: true,
     activeScreens: 1,
     isAdmin: true,
   },
@@ -104,6 +105,7 @@ export const mockUsers: AdminUser[] = [
       lifetime: !noPlan && lifetime,
       suspended: i === 9 || i === 17,
       extraScreens: i === 2 ? 1 : 0,
+      tvAccess: i % 3 === 0,
       activeScreens: i % 3,
     };
   }),

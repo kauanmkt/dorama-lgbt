@@ -46,6 +46,8 @@ export type AdminUser = {
   cancelled?: boolean;
   /** Telas extras além das do plano */
   extraScreens: number;
+  /** Comprou o "Assista na televisão" */
+  tvAccess: boolean;
   activeScreens: number;
   isAdmin?: boolean;
 };

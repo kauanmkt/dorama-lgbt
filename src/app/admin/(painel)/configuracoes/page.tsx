@@ -27,6 +27,8 @@ export default async function AdminSettingsPage() {
     autoplayNext: bool("autoplay_next", true),
     heroRotation: typeof s.hero_rotation_s === "number" ? s.hero_rotation_s : 8,
     extraScreenIds: Array.isArray(s.extra_screen_product_ids) ? (s.extra_screen_product_ids as unknown[]).map(String) : [],
+    tvProductIds: Array.isArray(s.tv_product_ids) ? (s.tv_product_ids as unknown[]).map(String) : [],
+    tvUpgradeUrl: str("tv_upgrade_url"),
   };
 
   return (

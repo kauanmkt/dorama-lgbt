@@ -75,6 +75,14 @@ export async function getMyAccess(): Promise<MyAccess> {
   };
 }
 
+/** Comprou o "Assista na televisão" (admin sempre pode). */
+export async function getMyTvAccess(): Promise<boolean> {
+  if (!isSupabaseConfigured) return true;
+  const { createSessionClient } = await import("@/lib/supabase/server");
+  const { data } = await (await createSessionClient()).rpc("my_tv_access");
+  return data === true;
+}
+
 export type MyProfile = { name: string; email: string };
 
 export async function getMyProfile(): Promise<MyProfile | null> {

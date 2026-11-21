@@ -44,6 +44,7 @@ export async function salvarAcesso(input: {
   lifetime: boolean;
   expiresAt?: string;
   extraScreens: number;
+  tvAccess?: boolean;
   suspended: boolean;
 }): Promise<Result> {
   if (!isSupabaseConfigured) return demo();
@@ -62,6 +63,7 @@ export async function salvarAcesso(input: {
       lifetime: input.lifetime,
       expires_at: input.lifetime ? null : input.expiresAt,
       extra_screens: Math.max(0, Math.min(20, Math.round(input.extraScreens))),
+      ...(input.tvAccess === undefined ? {} : { tv_access: input.tvAccess }),
       status: input.suspended ? "suspensa" : "ativa",
     },
     { onConflict: "user_id" },

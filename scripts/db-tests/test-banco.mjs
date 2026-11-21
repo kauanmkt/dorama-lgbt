@@ -46,6 +46,7 @@ await db.exec(readFileSync(`${root}/supabase/migrations/0010_suporte.sql`, "utf8
 await db.exec(readFileSync(`${root}/supabase/migrations/0011_telas_por_login.sql`, "utf8"));
 await db.exec(readFileSync(`${root}/supabase/migrations/0012_notificacoes.sql`, "utf8"));
 await db.exec(readFileSync(`${root}/supabase/migrations/0013_classificacao_18.sql`, "utf8"));
+await db.exec(readFileSync(`${root}/supabase/migrations/0014_assistir_na_tv.sql`, "utf8"));
 ok(true, "migração aplicada sem erros");
 
 console.log("\n▶ Aplicando dados de demonstração (2x, para testar repetição)");
@@ -294,6 +295,30 @@ console.log("\n▶ Classificação 18+");
 await asOwner();
 ok((await q("select pg_get_functiondef('public.admin_save_dorama(jsonb)'::regprocedure) f"))[0].f.includes("'age_rating', '18'"), "cadastro pelo painel usa 18+ quando não informado");
 ok((await q("select column_default d from information_schema.columns where table_name='doramas' and column_name='age_rating'"))[0].d.includes("18"), "dorama novo nasce 18+");
+
+console.log("\n▶ Assista na TV");
+await asOwner();
+const subAntes = (await q("select status, lifetime, expires_at from subscriptions where user_id=$1", [ana]))[0];
+await q("update subscriptions set status='ativa', lifetime=true, tv_access=false where user_id=$1", [ana]);
+await as("authenticated", ana);
+ok((await q("select public.my_tv_access() a"))[0].a === false, "sem o order bump, Ana não vê o tutorial da TV");
+await q(`update subscriptions set tv_access=true where user_id='${ana}'`).catch(() => {});
+await asOwner();
+ok((await q("select tv_access from subscriptions where user_id=$1", [ana]))[0].tv_access === false, "cliente não libera a TV sozinho");
+await q("update subscriptions set tv_access=true where user_id=$1", [ana]);
+await as("authenticated", ana);
+ok((await q("select public.my_tv_access() a"))[0].a === true, "comprou: Ana vê o tutorial da TV");
+await asOwner();
+await q("update subscriptions set status='suspensa' where user_id=$1", [ana]);
+await as("authenticated", ana);
+ok((await q("select public.my_tv_access() a"))[0].a === false, "plano suspenso: tutorial bloqueado");
+await as("authenticated", adm);
+ok((await q("select public.my_tv_access() a"))[0].a === true, "admin sempre vê");
+await as("anon");
+await expectError("select public.my_tv_access()", "visitante não consulta");
+await asOwner();
+ok((await q("select value from settings where key='tv_product_ids'"))[0].value[0] === "68571", "produto 68571 já cadastrado");
+await q("update subscriptions set status=$2, lifetime=$3, expires_at=$4, tv_access=false where user_id=$1", [ana, subAntes.status, subAntes.lifetime, subAntes.expires_at]);
 
 console.log("\n▶ Chat de suporte");
 await as("authenticated", ana);

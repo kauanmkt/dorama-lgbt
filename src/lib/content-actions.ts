@@ -246,6 +246,9 @@ export type SettingsInput = {
   heroRotation: number;
   /** IDs da Lowify do produto "tela extra" (order bump) */
   extraScreenIds: string[];
+  /** "Assista na televisão": IDs do produto e link de checkout */
+  tvProductIds: string[];
+  tvUpgradeUrl: string;
   /** ids dos doramas em destaque, na ordem do banner */
   featuredIds: string[];
 };
@@ -260,6 +263,10 @@ export async function salvarConfiguracoes(input: SettingsInput): Promise<Result>
   if (upgradeUrl && !/^https?:\/\/\S+$/i.test(upgradeUrl)) {
     return { ok: false, error: "O link do upgrade de telas precisa começar com https://" };
   }
+  const tvUrl = input.tvUpgradeUrl.trim();
+  if (tvUrl && !/^https?:\/\/\S+$/i.test(tvUrl)) {
+    return { ok: false, error: "O link do “Assista na televisão” precisa começar com https://" };
+  }
   const supabase = await session();
   const rows = [
     { key: "platform_name", value: input.platformName.trim() || "Amora Dramas" },
@@ -267,15 +274,21 @@ export async function salvarConfiguracoes(input: SettingsInput): Promise<Result>
     { key: "announcement", value: input.announcement.trim().slice(0, 160) },
     { key: "purchase_url", value: url },
     { key: "upgrade_url", value: upgradeUrl },
+    { key: "tv_upgrade_url", value: tvUrl },
     { key: "maintenance", value: input.maintenance },
     { key: "autoplay_next", value: input.autoplayNext },
     { key: "hero_rotation_s", value: [0, 6, 8, 12].includes(input.heroRotation) ? input.heroRotation : 8 },
   ].map((r) => ({ ...r, is_public: true }));
 
   const extraIds = [...new Set(input.extraScreenIds.map((x) => x.trim()).filter(Boolean))].slice(0, 20);
+  const tvIds = [...new Set(input.tvProductIds.map((x) => x.trim()).filter(Boolean))].slice(0, 20);
   const [settings, featured] = await Promise.all([
     supabase.from("settings").upsert(
-      [...rows, { key: "extra_screen_product_ids", value: extraIds, is_public: false }],
+      [
+        ...rows,
+        { key: "extra_screen_product_ids", value: extraIds, is_public: false },
+        { key: "tv_product_ids", value: tvIds, is_public: false },
+      ],
       { onConflict: "key" },
     ),
     supabase.rpc("admin_set_featured", { ids: input.featuredIds }),

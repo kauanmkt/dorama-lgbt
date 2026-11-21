@@ -84,6 +84,7 @@ export function UsersManager({ initial, plans, now: nowIso }: { initial: AdminUs
               lifetime: u.lifetime,
               expiresAt: u.expiresAt,
               extraScreens: u.extraScreens,
+              tvAccess: u.tvAccess,
               suspended: u.suspended,
             });
       if (!res.ok) {
@@ -358,6 +359,13 @@ function UserDrawer({
             </Button>
           </div>
         </FormField>
+
+        <Toggle
+          checked={draft.tvAccess}
+          onChange={(v) => set({ tvAccess: v })}
+          label="Assista na televisão"
+          description="Libera o tutorial de como assistir na TV (order bump)"
+        />
       </div>
 
       <h3 className="mt-7 mb-3 text-xs font-bold tracking-wider text-fg-subtle uppercase">Ações</h3>
@@ -419,6 +427,7 @@ function GrantModal({
       expiresAt: plan?.type === "recorrente" ? addDays(undefined, plan.durationDays ?? 30, now) : undefined,
       suspended: false,
       extraScreens: 0,
+      tvAccess: false,
       activeScreens: 0,
     });
     setBusy(false);

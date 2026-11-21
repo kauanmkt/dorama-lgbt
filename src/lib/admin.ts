@@ -182,7 +182,7 @@ export async function getUsers(): Promise<AdminUser[]> {
   const since = new Date(Date.now() - SCREEN_TIMEOUT_MS).toISOString();
   const [profiles, subs, admins, sessions] = await Promise.all([
     supabase.from("profiles").select("id, name, email, created_at, last_seen_at").order("created_at", { ascending: false }),
-    supabase.from("subscriptions").select("user_id, plan_id, status, lifetime, expires_at, extra_screens"),
+    supabase.from("subscriptions").select("user_id, plan_id, status, lifetime, expires_at, extra_screens, tv_access"),
     supabase.from("admins").select("user_id"),
     supabase.from("playback_sessions").select("user_id").gte("last_heartbeat_at", since),
   ]);
@@ -207,6 +207,7 @@ export async function getUsers(): Promise<AdminUser[]> {
       suspended: sub?.status === "suspensa",
       cancelled: sub?.status === "cancelada",
       extraScreens: sub?.extra_screens ?? 0,
+      tvAccess: Boolean(sub?.tv_access),
       activeScreens: screens.get(p.id) ?? 0,
       isAdmin: adminIds.has(p.id),
     };
