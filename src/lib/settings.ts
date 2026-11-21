@@ -7,7 +7,8 @@ export const SETTINGS_TAG = "settings";
 async function getPublicSettings(): Promise<Record<string, unknown>> {
   "use cache";
   cacheTag(SETTINGS_TAG);
-  cacheLife({ stale: 60, revalidate: 300, expire: 86_400 });
+  // Mudanças no catálogo já limpam o cache na hora (tags); a renovação automática é só de segurança
+  cacheLife({ stale: 300, revalidate: 3600, expire: 86_400 });
   if (!isSupabaseConfigured) return {};
 
   const { createPublicClient } = await import("@/lib/supabase/public");

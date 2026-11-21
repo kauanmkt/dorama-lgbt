@@ -129,7 +129,8 @@ async function fetchFromSupabase(): Promise<CatalogData> {
 async function getCatalog(): Promise<CatalogData> {
   "use cache";
   cacheTag(CATALOG_TAG);
-  cacheLife({ stale: 60, revalidate: 300, expire: 86_400 });
+  // Mudanças no catálogo já limpam o cache na hora (tags); a renovação automática é só de segurança
+  cacheLife({ stale: 300, revalidate: 3600, expire: 86_400 });
 
   if (!isSupabaseConfigured) return { doramas: mockDoramas, categories: mockCategories };
   return fetchFromSupabase();

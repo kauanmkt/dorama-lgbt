@@ -3,7 +3,6 @@
  * Chamado pelo agendador do Supabase (a cada 30 min) com o token de importação.
  */
 import { timingSafeEqual } from "node:crypto";
-import { revalidateTag } from "next/cache";
 import { NextResponse, type NextRequest } from "next/server";
 import { syncCinedrama } from "@/lib/sync-cinedrama";
 
@@ -18,8 +17,8 @@ function tokenOk(req: NextRequest) {
 export async function GET(req: NextRequest) {
   if (!tokenOk(req)) return NextResponse.json({ error: "Token inválido" }, { status: 401 });
   try {
+    // (não limpa o cache aqui: o dorama só aparece quando a cópia termina, e aí o copiador limpa)
     const result = await syncCinedrama();
-    if (result.na_fila) revalidateTag("catalog", "max");
     return NextResponse.json({ ok: true, ...result });
   } catch (e) {
     console.error("[sincronizar]", e);
