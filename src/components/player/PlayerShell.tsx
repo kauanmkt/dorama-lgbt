@@ -38,6 +38,7 @@ export function PlayerShell({
   startPercent = 0,
   src,
   hls = false,
+  accessEndsAt,
 }: {
   doramaSlug: string;
   doramaTitle: string;
@@ -47,6 +48,8 @@ export function PlayerShell({
   src?: string;
   /** vídeo em pedaços (HLS) — usa hls.js onde o navegador não toca sozinho */
   hls?: boolean;
+  /** Quando o acesso acaba (ex.: teste de 5 min): o player para e mostra a tela de assinar */
+  accessEndsAt?: string;
 }) {
   const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -127,6 +130,18 @@ export function PlayerShell({
       destroy?.();
     };
   }, [src, hls]);
+
+  // ---------- Fim do acesso (teste temporário) ----------
+  useEffect(() => {
+    if (!accessEndsAt) return;
+    const ms = new Date(accessEndsAt).getTime() - Date.now();
+    if (!(ms < 86_400_000)) return; // só acessos que acabam hoje (testes)
+    const t = setTimeout(() => {
+      videoRef.current?.pause();
+      window.location.reload(); // recarrega: a página mostra "Seu acesso terminou"
+    }, Math.max(0, ms) + 1500);
+    return () => clearTimeout(t);
+  }, [accessEndsAt]);
 
   // ---------- Limite de telas (por login) ----------
   // Se a conta entrou em outro aparelho e este login caiu, para o vídeo e sai.

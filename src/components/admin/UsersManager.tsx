@@ -164,7 +164,7 @@ export function UsersManager({ initial, plans, now: nowIso }: { initial: AdminUs
                           <span className="block truncate text-xs text-fg-subtle">{u.email}</span>
                           <span className="mt-0.5 block text-xs text-fg-muted md:hidden">
                             {planName(u.planId)}
-                            {u.lifetime ? " · sem vencimento" : u.expiresAt ? ` · até ${formatDate(u.expiresAt)}` : ""}
+                            {u.lifetime ? " · sem vencimento" : u.expiresAt ? ` · até ${shortOrDate(u.expiresAt, now)}` : ""}
                           </span>
                         </span>
                       </span>
@@ -175,7 +175,7 @@ export function UsersManager({ initial, plans, now: nowIso }: { initial: AdminUs
                             <InfinityIcon className="size-4" /> Vitalício
                           </span>
                         ) : (
-                          formatDate(u.expiresAt)
+                          shortOrDate(u.expiresAt, now)
                         )}
                       </span>
                       <span className="hidden text-sm text-fg-muted md:block">{formatRelative(u.lastSeenAt, now)}</span>
@@ -209,7 +209,7 @@ export function UsersManager({ initial, plans, now: nowIso }: { initial: AdminUs
           now={now}
           onClose={() => setGranting(false)}
           onGrant={async (u) => {
-            const res = await liberarAcesso({ email: u.email, name: u.name, planId: u.planId ?? "" });
+            const res = await liberarAcesso({ email: u.email, name: u.name, planId: u.planId ?? "", minutes: u.tempMinutes });
             if (!res.ok) return res.error;
             setUsers((l) => {
               const existing = l.find((x) => x.email === u.email);
@@ -223,6 +223,16 @@ export function UsersManager({ initial, plans, now: nowIso }: { initial: AdminUs
       )}
     </>
   );
+}
+
+/** Acesso que acaba em menos de 1 dia (ex.: teste de 5 min) mostra a hora, não só a data. */
+function shortOrDate(iso: string | undefined, now: Date) {
+  if (!iso) return "—";
+  const ms = new Date(iso).getTime() - now.getTime();
+  if (ms > 0 && ms < 86_400_000) {
+    return `${new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" })} (teste)`;
+  }
+  return formatDate(iso);
 }
 
 function UserDrawer({
@@ -411,6 +421,8 @@ function GrantModal({
   const [name, setName] = useState("");
   const [planId, setPlanId] = useState(active[0]?.id ?? "");
   const [error, setError] = useState("");
+  const [temporary, setTemporary] = useState(false);
+  const [minutes, setMinutes] = useState(5);
   const plan = plans.find((p) => p.id === planId);
 
   const submit = async () => {
@@ -423,12 +435,17 @@ function GrantModal({
       email: email.trim().toLowerCase(),
       createdAt: now.toISOString(),
       planId,
-      lifetime: plan?.type === "vitalicio",
-      expiresAt: plan?.type === "recorrente" ? addDays(undefined, plan.durationDays ?? 30, now) : undefined,
+      lifetime: !temporary && plan?.type === "vitalicio",
+      expiresAt: temporary
+        ? new Date(Date.now() + minutes * 60_000).toISOString()
+        : plan?.type === "recorrente"
+          ? addDays(undefined, plan.durationDays ?? 30, now)
+          : undefined,
       suspended: false,
       extraScreens: 0,
       tvAccess: false,
       activeScreens: 0,
+      tempMinutes: temporary ? minutes : undefined,
     });
     setBusy(false);
     if (err) setError(err);
@@ -447,7 +464,7 @@ function GrantModal({
             Cancelar
           </Button>
           <Button size="sm" onClick={submit} disabled={busy}>
-            {busy && <Loader2 className="animate-spin" />} Liberar acesso
+            {busy && <Loader2 className="animate-spin" />} {temporary ? `Liberar teste de ${minutes} min` : "Liberar acesso"}
           </Button>
         </>
       }
@@ -475,6 +492,30 @@ function GrantModal({
             </option>
           ))}
         </SelectInput>
+        <div className="rounded-xl border border-line p-3.5">
+          <Toggle
+            checked={temporary}
+            onChange={setTemporary}
+            label="Acesso temporário (teste)"
+            description="Para quem gerou o Pix e não pagou: a pessoa assiste por poucos minutos e depois o acesso acaba sozinho."
+          />
+          {temporary && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {[5, 10, 15, 30].map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setMinutes(m)}
+                  className={`rounded-full px-3.5 py-1.5 text-sm font-bold ring-1 transition ${
+                    minutes === m ? "bg-brand-600 text-white ring-brand-500" : "text-fg-muted ring-line hover:bg-white/5"
+                  }`}
+                >
+                  {m} min
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </Modal>
   );

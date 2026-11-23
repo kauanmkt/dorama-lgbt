@@ -45,6 +45,8 @@ export type GrantInput = {
   planId: string;
   source: "manual" | "gateway";
   notes?: string;
+  /** Acesso temporário (teste): vale só por estes minutos, em vez do período do plano */
+  minutes?: number;
 };
 
 export type GrantResult = { userId: string; created: boolean; lifetime: boolean; expiresAt: string | null };
@@ -74,6 +76,35 @@ export async function grantAccess(input: GrantInput): Promise<GrantResult> {
     .select("expires_at, lifetime, status")
     .eq("user_id", userId)
     .maybeSingle();
+
+  // Acesso temporário: nunca diminui o acesso de quem já está com plano ativo
+  if (input.minutes) {
+    const nowMs = Date.now();
+    const endMs = nowMs + Math.round(input.minutes) * 60_000;
+    const active = current?.status === "ativa";
+    if (active && current?.lifetime) throw new Error("Este cliente já tem acesso vitalício ativo.");
+    if (active && current?.expires_at && new Date(current.expires_at).getTime() > endMs) {
+      throw new Error(
+        `Este cliente já tem acesso ativo até ${new Date(current.expires_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}.`,
+      );
+    }
+    const temp = new Date(endMs).toISOString();
+    const { error: tempError } = await admin.from("subscriptions").upsert(
+      {
+        user_id: userId,
+        plan_id: plan.id,
+        status: "ativa",
+        lifetime: false,
+        expires_at: temp,
+        starts_at: new Date(nowMs).toISOString(),
+        source: input.source,
+        notes: `Acesso temporário de ${Math.round(input.minutes)} min (teste)`,
+      },
+      { onConflict: "user_id" },
+    );
+    if (tempError) throw new Error(`Não foi possível liberar o acesso: ${tempError.message}`);
+    return { userId, created: !existed, lifetime: false, expiresAt: temp };
+  }
 
   const lifetime = plan.type === "vitalicio" || Boolean(current?.lifetime && current.status === "ativa");
   let expiresAt: string | null = null;

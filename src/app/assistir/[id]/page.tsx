@@ -86,16 +86,22 @@ async function PlayerGate({ ctx }: { ctx: EpisodeContext }) {
           <Lock className="size-6" />
         </span>
         <h1 className="text-2xl font-extrabold">
-          {access.status === "suspensa" ? "Acesso suspenso" : "Sua assinatura não está ativa"}
+          {access.status === "suspensa"
+            ? "Acesso suspenso"
+            : access.expiresAt
+              ? "Seu acesso terminou"
+              : "Sua assinatura não está ativa"}
         </h1>
         <p className="max-w-sm text-fg-muted">
           {access.status === "suspensa"
             ? "Fale com o suporte para reativar sua conta."
-            : "Renove sua assinatura para continuar assistindo."}
+            : access.expiresAt
+              ? "Gostou? Garanta seu plano para continuar assistindo todos os doramas."
+              : "Renove sua assinatura para continuar assistindo."}
         </p>
         {purchaseUrl && access.status !== "suspensa" && (
           <a href={purchaseUrl} className="rounded-full bg-brand-600 px-6 py-3 font-bold hover:bg-brand-500">
-            Renovar agora
+            {access.expiresAt ? "Assinar agora" : "Renovar agora"}
           </a>
         )}
         <Link href="/perfil" className="text-sm font-semibold text-fg-muted hover:text-fg">
@@ -108,7 +114,15 @@ async function PlayerGate({ ctx }: { ctx: EpisodeContext }) {
     getContinueWatching(50).then((list) => list.find((c) => c.episode.id === ctx.episode.id)),
     getPlaybackSource(ctx.episode.id),
   ]);
-  return <Player ctx={ctx} startPercent={progress?.percent} src={source?.url} hls={source?.hls} />;
+  return (
+    <Player
+      ctx={ctx}
+      startPercent={progress?.percent}
+      src={source?.url}
+      hls={source?.hls}
+      accessEndsAt={access.lifetime ? undefined : access.expiresAt}
+    />
+  );
 }
 
 function Loading() {
@@ -124,11 +138,13 @@ function Player({
   startPercent,
   src,
   hls,
+  accessEndsAt,
 }: {
   ctx: EpisodeContext;
   startPercent?: number;
   src?: string;
   hls?: boolean;
+  accessEndsAt?: string;
 }) {
   const pick = ({ id, season, number, title, durationMin }: EpisodeContext["episode"]) => ({
     id,
@@ -147,6 +163,7 @@ function Player({
       startPercent={startPercent}
       src={src}
       hls={hls}
+      accessEndsAt={accessEndsAt}
     />
   );
 }

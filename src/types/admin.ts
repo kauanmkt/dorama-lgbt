@@ -48,6 +48,8 @@ export type AdminUser = {
   extraScreens: number;
   /** Comprou o "Assista na televisão" */
   tvAccess: boolean;
+  /** Só na criação: acesso temporário (teste) de N minutos */
+  tempMinutes?: number;
   activeScreens: number;
   isAdmin?: boolean;
 };

@@ -22,12 +22,17 @@ async function session() {
 // ============ Usuários / acesso ============
 
 /** "Liberar acesso" manual: cria a conta (se precisar) e ativa o plano. */
-export async function liberarAcesso(input: { email: string; name?: string; planId: string }): Promise<Result> {
+export async function liberarAcesso(input: { email: string; name?: string; planId: string; minutes?: number }): Promise<Result> {
   if (!isSupabaseConfigured) return demo();
   await requireAdmin();
   try {
     const { grantAccess } = await import("@/lib/access");
-    const r = await grantAccess({ ...input, source: "manual" });
+    const minutes = input.minutes ? Math.max(1, Math.min(24 * 60, Math.round(input.minutes))) : undefined;
+    const r = await grantAccess({ ...input, minutes, source: "manual" });
+    if (minutes) {
+      const until = new Date(r.expiresAt!).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
+      return { ok: true, message: `Acesso de teste liberado para ${input.email} até ${until} (${minutes} min)` };
+    }
     return {
       ok: true,
       message: r.created ? `Conta criada e acesso liberado para ${input.email}` : `Acesso liberado para ${input.email}`,
