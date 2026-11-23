@@ -173,7 +173,7 @@ export async function getPlans(): Promise<Plan[]> {
 }
 
 /** Uma tela conta como "em uso" se deu sinal de vida nos últimos 2 minutos. */
-const SCREEN_TIMEOUT_MS = 2 * 60 * 1000;
+const SCREEN_TIMEOUT_MS = 4 * 60 * 1000; // o player avisa a cada 90 s
 
 export async function getUsers(): Promise<AdminUser[]> {
   if (!isSupabaseConfigured) return mockUsers;

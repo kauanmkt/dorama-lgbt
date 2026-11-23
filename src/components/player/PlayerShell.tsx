@@ -143,7 +143,8 @@ export function PlayerShell({
   useEffect(() => {
     if (!src) return;
     checkScreen();
-    const t = setInterval(checkScreen, 30_000);
+    // a cada 90 s (cada chamada custa uso na Vercel; derrubar outro aparelho não precisa ser instantâneo)
+    const t = setInterval(checkScreen, 90_000);
     const device = getDeviceId();
     return () => {
       clearInterval(t);
@@ -166,7 +167,8 @@ export function PlayerShell({
 
   useEffect(() => {
     if (!src || !playing) return;
-    const t = setInterval(() => save(), 15_000);
+    // a cada 45 s; ao pausar, trocar de aba ou sair também salva na hora
+    const t = setInterval(() => save(), 45_000);
     return () => clearInterval(t);
   }, [src, playing, save]);
 

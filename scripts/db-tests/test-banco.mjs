@@ -47,6 +47,7 @@ await db.exec(readFileSync(`${root}/supabase/migrations/0011_telas_por_login.sql
 await db.exec(readFileSync(`${root}/supabase/migrations/0012_notificacoes.sql`, "utf8"));
 await db.exec(readFileSync(`${root}/supabase/migrations/0013_classificacao_18.sql`, "utf8"));
 await db.exec(readFileSync(`${root}/supabase/migrations/0014_assistir_na_tv.sql`, "utf8"));
+await db.exec(readFileSync(`${root}/supabase/migrations/0015_ping_menos_frequente.sql`, "utf8"));
 ok(true, "migração aplicada sem erros");
 
 console.log("\n▶ Aplicando dados de demonstração (2x, para testar repetição)");
