@@ -12,11 +12,12 @@ export const metadata: Metadata = {
 export default function AdminLoginPage({ searchParams }: PageProps<"/admin/entrar">) {
   return (
     <AuthShell>
-      <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-600/15 text-brand-300">
-        <ShieldCheck className="size-5" />
-      </span>
-      <h1 className="mt-4 text-2xl font-extrabold">Painel administrativo</h1>
-      <p className="mt-1 text-sm text-fg-muted">Acesso restrito. Entre com e-mail e senha.</p>
+      <div className="text-center">
+        <h1 className="inline-flex items-center gap-2 text-2xl font-extrabold">
+          <ShieldCheck className="size-6 text-brand-300" /> Painel
+        </h1>
+        <p className="mt-1 text-sm text-fg-muted">Acesso restrito. Entre com e-mail e senha.</p>
+      </div>
       <Suspense fallback={null}>
         <Notice searchParams={searchParams} />
       </Suspense>

@@ -2,7 +2,6 @@
 
 import { useActionState, useEffect, useState } from "react";
 import { AlertCircle, ArrowRight, Loader2, MonitorSmartphone } from "lucide-react";
-import { Field } from "@/components/auth/fields";
 import { Button } from "@/components/ui/Button";
 import { entrarComEmail, type LoginState } from "./actions";
 
@@ -20,7 +19,7 @@ export function LoginForm({ purchaseUrl }: { purchaseUrl?: string }) {
   };
 
   return (
-    <form action={action} className="mt-7 space-y-4">
+    <form action={action} className="mt-6 space-y-4">
       {kicked && !state.error && (
         <div role="status" className="flex gap-2.5 rounded-xl bg-brand-500/10 px-4 py-3 text-sm ring-1 ring-brand-400/30">
           <MonitorSmartphone className="mt-0.5 size-4 shrink-0 text-brand-300" />
@@ -33,16 +32,17 @@ export function LoginForm({ purchaseUrl }: { purchaseUrl?: string }) {
           </div>
         </div>
       )}
-      <Field
-        label="E-mail da compra"
+      <input
+        aria-label="E-mail da compra"
         type="email"
         name="email"
         autoComplete="email"
         inputMode="email"
-        placeholder="voce@email.com"
+        placeholder="Digite o e-mail da sua compra"
         defaultValue={state.email}
         required
         autoFocus
+        className="h-14 w-full rounded-xl border border-brand-500/45 bg-transparent px-4 text-base text-fg outline-none transition placeholder:text-fg-muted focus:border-brand-400 focus:ring-4 focus:ring-brand-600/25"
       />
 
       {state.error && (
@@ -66,10 +66,19 @@ export function LoginForm({ purchaseUrl }: { purchaseUrl?: string }) {
         </div>
       )}
 
-      <Button type="submit" size="lg" className="w-full" disabled={pending}>
+      <Button type="submit" size="lg" className="h-14 w-full rounded-xl text-base font-semibold" disabled={pending}>
         {pending ? <Loader2 className="animate-spin" /> : <ArrowRight />}
         {pending ? "Entrando…" : "Entrar"}
       </Button>
+
+      {purchaseUrl && (
+        <p className="pt-2 text-center text-sm text-fg-muted">
+          Ainda não tem acesso?{" "}
+          <a href={purchaseUrl} className="font-bold text-brand-300 hover:underline">
+            Assinar agora
+          </a>
+        </p>
+      )}
     </form>
   );
 }

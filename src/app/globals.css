@@ -54,6 +54,26 @@
   --animate-fade-up: fade-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
   --animate-fade-in: fade-in 0.5s ease-out both;
   --animate-glow: glow 6s ease-in-out infinite alternate;
+  /* Parede de capas da tela de login (colunas subindo e descendo) */
+  --animate-poster-up: poster-up 90s linear infinite;
+  --animate-poster-down: poster-down 90s linear infinite;
+
+  @keyframes poster-up {
+    from {
+      transform: translateY(0);
+    }
+    to {
+      transform: translateY(-50%);
+    }
+  }
+  @keyframes poster-down {
+    from {
+      transform: translateY(-50%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
 
   @keyframes fade-up {
     from {
