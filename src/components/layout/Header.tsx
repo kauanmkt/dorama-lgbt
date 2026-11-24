@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
  * Cabeçalho da área do cliente.
  * Fica transparente sobre o banner e ganha fundo ao rolar a página.
  */
-export function Header() {
+export function Header({ adminSlot }: { adminSlot?: React.ReactNode }) {
   const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
 
@@ -66,6 +66,7 @@ export function Header() {
           >
             <Search className="size-5" />
           </Link>
+          {adminSlot}
           <Link
             href="/solicitar"
             aria-label="Solicitar série"

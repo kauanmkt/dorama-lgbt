@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
+import { AdminShortcut } from "@/components/layout/AdminShortcut";
 import { Bell, ChevronRight, HelpCircle, Tv, LogOut, MessageCircle, MonitorSmartphone, Plus, ShieldCheck, Smartphone } from "lucide-react";
 import { Container } from "@/components/layout/PageIntro";
 import { Badge } from "@/components/ui/Badge";
@@ -27,6 +28,10 @@ export default function ProfilePage() {
     <Container className="max-w-2xl pt-24 md:pt-28">
       <Suspense fallback={<ProfileSkeleton />}>
         <ProfileContent />
+      </Suspense>
+
+      <Suspense fallback={null}>
+        <AdminShortcut variant="menu" />
       </Suspense>
 
       <nav className="mt-6 overflow-hidden rounded-2xl border border-line bg-ink-900/60">

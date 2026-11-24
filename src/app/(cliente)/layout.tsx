@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+import { AdminShortcut } from "@/components/layout/AdminShortcut";
 import { AnnouncementBar } from "@/components/layout/AnnouncementBar";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
@@ -13,7 +15,13 @@ export default async function ClienteLayout({ children }: { children: React.Reac
   const announcement = (await getPublicSetting<string>("announcement"))?.trim();
   return (
     <>
-      <Header />
+      <Header
+        adminSlot={
+          <Suspense fallback={null}>
+            <AdminShortcut />
+          </Suspense>
+        }
+      />
       <main className="min-h-dvh">{children}</main>
       <Footer />
       <BottomNav />

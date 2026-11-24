@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { LogOut, Menu, X } from "lucide-react";
+import { ArrowLeftRight, LogOut, Menu, X } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 import { adminNav } from "@/config/navigation";
 import { sair } from "@/lib/session-actions";
@@ -44,6 +44,28 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
+/** Troca rápida para a área do cliente (mesma conta). */
+function ClientSwitch({ compact }: { compact?: boolean }) {
+  if (compact) {
+    return (
+      <Link
+        href="/"
+        className="flex h-9 items-center gap-1.5 rounded-full bg-brand-600/20 px-3 text-xs font-bold text-brand-200 ring-1 ring-brand-500/40"
+      >
+        <ArrowLeftRight className="size-4" /> Cliente
+      </Link>
+    );
+  }
+  return (
+    <Link
+      href="/"
+      className="mb-2 flex items-center gap-3 rounded-xl bg-brand-600/15 px-3 py-2.5 text-sm font-bold text-brand-200 ring-1 ring-brand-500/30 transition-colors hover:bg-brand-600/25"
+    >
+      <ArrowLeftRight className="size-[18px]" /> Ir para a área do cliente
+    </Link>
+  );
+}
+
 /**
  * Menu do painel administrativo.
  * Computador: barra lateral fixa. Celular: barra no topo + gaveta.
@@ -56,14 +78,17 @@ export function AdminSidebar() {
       {/* Celular */}
       <div className="pt-safe sticky top-0 z-40 flex h-14 items-center justify-between border-b border-line bg-ink-950/90 px-4 backdrop-blur-xl lg:hidden">
         <Logo />
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          aria-label="Abrir menu"
-          className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-white/10"
-        >
-          <Menu className="size-5" />
-        </button>
+        <div className="flex items-center gap-1">
+          <ClientSwitch compact />
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            aria-label="Abrir menu"
+            className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-white/10"
+          >
+            <Menu className="size-5" />
+          </button>
+        </div>
       </div>
 
       {open && (
@@ -102,6 +127,7 @@ export function AdminSidebar() {
         <nav className="mt-4 flex-1" aria-label="Painel">
           <NavList />
         </nav>
+        <ClientSwitch />
         <form action={sair}>
           <input type="hidden" name="para" value="admin" />
           <button
