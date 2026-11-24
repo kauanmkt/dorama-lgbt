@@ -1,8 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
   cacheComponents: true,
+  // Gera um servidor enxuto em .next/standalone (para rodar fora da Vercel, ex.: VPS com Coolify)
+  output: "standalone",
   // O service worker (notificações) precisa ser sempre a versão mais nova
   async headers() {
     return [
