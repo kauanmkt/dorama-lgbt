@@ -138,6 +138,8 @@ export const getAdminSettings = cache(async (): Promise<Record<string, unknown>>
 
 type PlanRow = {
   external_product_ids?: string[];
+  checkout_url?: string;
+  show_on_site?: boolean;
   id: string;
   name: string;
   description: string;
@@ -155,7 +157,7 @@ export const getPlans = cache(async (): Promise<Plan[]> => {
   const supabase = await createSessionClient();
   const { data, error } = await supabase
     .from("plans")
-    .select("id, name, description, price_cents, type, duration_days, screens, active, highlight, external_product_ids")
+    .select("id, name, description, price_cents, type, duration_days, screens, active, highlight, external_product_ids, checkout_url, show_on_site")
     .order("position")
     .order("created_at");
   if (error) throw new Error(`Erro ao ler planos: ${error.message}`);
@@ -170,6 +172,8 @@ export const getPlans = cache(async (): Promise<Plan[]> => {
     active: p.active,
     highlight: p.highlight,
     productIds: p.external_product_ids ?? [],
+    checkoutUrl: p.checkout_url ?? "",
+    showOnSite: p.show_on_site ?? false,
   }));
 });
 

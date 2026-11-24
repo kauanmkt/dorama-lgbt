@@ -40,6 +40,7 @@ export function MyListButton({
       aria-pressed={saved}
       aria-busy={pending}
       onClick={toggle}
+      data-member-only
     >
       {saved ? <Check className="text-brand-300" /> : <Plus />}
       {saved ? "Na minha lista" : "Minha Lista"}

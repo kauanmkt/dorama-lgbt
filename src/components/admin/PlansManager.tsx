@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Infinity as InfinityIcon, Link2, Minus, MonitorPlay, Pencil, Plus, RefreshCw, Sparkles, Users } from "lucide-react";
+import { Globe, Infinity as InfinityIcon, Link2, Minus, MonitorPlay, Pencil, Plus, RefreshCw, Sparkles, Users } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { AdminHeader, FormField, Modal, SelectInput, TextArea, TextInput, Toggle, useToast } from "@/components/admin/ui";
@@ -89,6 +89,14 @@ export function PlansManager({ initial, subscribers }: { initial: Plan[]; subscr
                 <Link2 className="size-4 text-brand-300" />
                 {p.productIds?.length ? `Lowify: produto ${p.productIds.join(", ")}` : "Sem produto da Lowify ligado"}
               </li>
+              <li className={`flex items-center gap-2 ${p.showOnSite && p.checkoutUrl ? "" : "text-fg-subtle"}`}>
+                <Globe className="size-4 text-brand-300" />
+                {p.showOnSite && p.checkoutUrl && p.active
+                  ? "Aparece na janela de planos do site"
+                  : p.showOnSite && !p.checkoutUrl
+                    ? "Falta o link do checkout para aparecer no site"
+                    : "Não aparece no site"}
+              </li>
               <li className="flex items-center gap-2">
                 <Users className="size-4 text-brand-300" />
                 {subscribers[p.id] ?? 0} assinantes
@@ -151,6 +159,8 @@ function PlanModal({ initial, onClose, onSave }: { initial?: Plan; onClose: () =
   const [active, setActive] = useState(initial?.active ?? true);
   const [highlight, setHighlight] = useState(initial?.highlight ?? false);
   const [productIds, setProductIds] = useState((initial?.productIds ?? []).join(", "));
+  const [checkoutUrl, setCheckoutUrl] = useState(initial?.checkoutUrl ?? "");
+  const [showOnSite, setShowOnSite] = useState(initial?.showOnSite ?? false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const submit = () => {
@@ -159,6 +169,8 @@ function PlanModal({ initial, onClose, onSave }: { initial?: Plan; onClose: () =
     if (!name.trim()) e.name = "Dê um nome ao plano.";
     if (!Number.isFinite(cents) || cents <= 0) e.price = "Informe um preço válido.";
     if (type === "recorrente" && (!duration || duration < 1)) e.duration = "Informe a duração.";
+    if (checkoutUrl.trim() && !/^https:\/\/\S+$/.test(checkoutUrl.trim())) e.checkout = "O link precisa começar com https://";
+    if (showOnSite && !checkoutUrl.trim()) e.checkout = "Para mostrar no site, cole o link do checkout.";
     setErrors(e);
     if (Object.keys(e).length) return;
     onSave({
@@ -172,6 +184,8 @@ function PlanModal({ initial, onClose, onSave }: { initial?: Plan; onClose: () =
       active,
       highlight,
       productIds: productIds.split(/[\s,;]+/).filter(Boolean),
+      checkoutUrl: checkoutUrl.trim(),
+      showOnSite,
     });
   };
 
@@ -288,9 +302,27 @@ function PlanModal({ initial, onClose, onSave }: { initial?: Plan; onClose: () =
           />
         </div>
 
+        <div className="sm:col-span-2">
+          <TextInput
+            label="Link do checkout"
+            type="url"
+            value={checkoutUrl}
+            onChange={(e) => setCheckoutUrl(e.target.value)}
+            placeholder="https://checkout.lowify.com.br/..."
+            hint="Para onde vai o botão deste plano na janela de planos do site"
+            error={errors.checkout}
+          />
+        </div>
+
         <div className="space-y-4 sm:col-span-2">
           <Toggle checked={active} onChange={setActive} label="Plano ativo" description="Disponível para novas assinaturas" />
           <Toggle checked={highlight} onChange={setHighlight} label="Destacar este plano" description="Aparece como recomendado na página de planos" />
+          <Toggle
+            checked={showOnSite}
+            onChange={setShowOnSite}
+            label="Mostrar na janela de planos do site"
+            description="Aparece para quem ainda não assina, ao tocar num dorama"
+          />
         </div>
       </div>
     </Modal>

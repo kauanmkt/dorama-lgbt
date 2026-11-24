@@ -13,7 +13,7 @@ export default async function LoginPage() {
         <h1 className="text-[30px] leading-tight font-extrabold">Entrar</h1>
         <p className="mt-2 text-sm text-fg-muted">Faça login para continuar assistindo</p>
       </div>
-      <LoginForm purchaseUrl={purchaseUrl || undefined} />
+      <LoginForm purchaseUrl={purchaseUrl || "/?planos"} />
     </>
   );
 }

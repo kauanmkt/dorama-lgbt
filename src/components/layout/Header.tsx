@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { Plus, Search, User } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { useVisitor, visitorStore } from "@/components/visitor/visitor-store";
 import { clientTopNav } from "@/config/navigation";
 import { cn } from "@/lib/utils";
 
@@ -15,6 +16,7 @@ import { cn } from "@/lib/utils";
  */
 export function Header({ adminSlot }: { adminSlot?: React.ReactNode }) {
   const pathname = usePathname();
+  const { visitor, resolved } = useVisitor();
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -38,9 +40,15 @@ export function Header({ adminSlot }: { adminSlot?: React.ReactNode }) {
           <Logo />
         </Link>
 
-        <nav className="hidden items-center gap-1 md:flex" aria-label="Principal">
+        <nav
+          className="hidden items-center gap-1 md:flex"
+          aria-label="Principal"
+        >
           {clientTopNav.map((item) => {
-            const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+            const active =
+              item.href === "/"
+                ? pathname === "/"
+                : pathname.startsWith(item.href);
             return (
               <Link
                 key={item.href}
@@ -66,26 +74,50 @@ export function Header({ adminSlot }: { adminSlot?: React.ReactNode }) {
           >
             <Search className="size-5" />
           </Link>
-          {adminSlot}
-          <Link
-            href="/solicitar"
-            aria-label="Solicitar série"
-            title="Solicitar série"
-            className={cn(
-              "flex h-10 w-10 items-center justify-center rounded-full transition-colors hover:bg-white/10 hover:text-fg",
-              pathname.startsWith("/solicitar") ? "text-brand-300" : "text-fg-muted",
-            )}
-          >
-            <Plus className="size-6" strokeWidth={2.4} />
-          </Link>
-          <NotificationBell />
-          <Link
-            href="/perfil"
-            aria-label="Minha conta"
-            className="ml-1 flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-accent-500 ring-2 ring-transparent transition hover:ring-brand-300"
-          >
-            <User className="size-5" />
-          </Link>
+          {visitor ? (
+            <>
+              <Link
+                href="/entrar"
+                className="flex h-9 items-center rounded-full px-3 text-sm font-semibold text-fg-muted transition-colors hover:bg-white/10 hover:text-fg"
+              >
+                Entrar
+              </Link>
+              <button
+                type="button"
+                onClick={visitorStore.openPlans}
+                className="flex h-9 items-center rounded-full bg-brand-600 px-4 text-sm font-bold transition hover:bg-brand-500"
+              >
+                Assinar
+              </button>
+            </>
+          ) : !resolved ? (
+            <span className="h-9 w-24" aria-hidden="true" />
+          ) : (
+            <>
+              {adminSlot}
+              <Link
+                href="/solicitar"
+                aria-label="Solicitar série"
+                title="Solicitar série"
+                className={cn(
+                  "flex h-10 w-10 items-center justify-center rounded-full transition-colors hover:bg-white/10 hover:text-fg",
+                  pathname.startsWith("/solicitar")
+                    ? "text-brand-300"
+                    : "text-fg-muted",
+                )}
+              >
+                <Plus className="size-6" strokeWidth={2.4} />
+              </Link>
+              <NotificationBell />
+              <Link
+                href="/perfil"
+                aria-label="Minha conta"
+                className="ml-1 flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-accent-500 ring-2 ring-transparent transition hover:ring-brand-300"
+              >
+                <User className="size-5" />
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </header>

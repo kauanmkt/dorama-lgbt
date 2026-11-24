@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { BellRing, X } from "lucide-react";
 import { getPushState } from "@/lib/push-client";
+import { useVisitor } from "@/components/visitor/visitor-store";
 
 const DISMISS_KEY = "amora:push-banner";
 
@@ -25,7 +26,8 @@ export function EnablePushBanner({ className = "" }: { className?: string }) {
       .catch(() => {});
   }, []);
 
-  if (!show) return null;
+  const { visitor, resolved } = useVisitor();
+  if (!show || !resolved || visitor) return null;
 
   return (
     <div className={`flex items-center gap-3 rounded-2xl border border-brand-500/40 bg-gradient-to-r from-brand-900/70 to-ink-900 p-3.5 pr-2 ${className}`}>

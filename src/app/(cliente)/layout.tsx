@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { AdminShortcut } from "@/components/layout/AdminShortcut";
+import { VisitorMode } from "@/components/visitor/VisitorMode";
 import { AnnouncementBar } from "@/components/layout/AnnouncementBar";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
@@ -26,6 +27,9 @@ export default async function ClienteLayout({ children }: { children: React.Reac
       <Footer />
       <BottomNav />
       <InstallPrompt />
+      <Suspense fallback={null}>
+        <VisitorMode />
+      </Suspense>
       {announcement && <AnnouncementBar text={announcement} />}
     </>
   );

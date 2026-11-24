@@ -27,6 +27,10 @@ export type Plan = {
   highlight?: boolean;
   /** IDs dos produtos na Lowify que liberam este plano */
   productIds?: string[];
+  /** Link do checkout (botão na janela de planos do site) */
+  checkoutUrl?: string;
+  /** Aparece na janela de planos para quem ainda não assina */
+  showOnSite?: boolean;
 };
 
 export type AccessStatus = "ativo" | "expirado" | "suspenso" | "sem_plano";

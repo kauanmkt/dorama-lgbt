@@ -5,7 +5,9 @@
  * Toda ação confere de novo se quem pede é admin — nunca confia só na tela.
  * Além disso, o RLS do banco também bloqueia quem não for admin.
  */
+import { updateTag } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
+import { PLANS_TAG } from "@/lib/site-plans";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import type { Plan } from "@/types/admin";
 
@@ -99,10 +101,16 @@ export async function salvarPlano(plan: Plan & { isNew?: boolean }): Promise<Res
     active: plan.active,
     highlight: plan.highlight ?? false,
     external_product_ids: [...new Set((plan.productIds ?? []).map((x) => x.trim()).filter(Boolean))].slice(0, 20),
+    checkout_url: (plan.checkoutUrl ?? "").trim(),
+    show_on_site: plan.showOnSite ?? false,
   };
+  if (row.checkout_url && !/^https:\/\/\S+$/.test(row.checkout_url)) {
+    return { ok: false, error: "O link do checkout precisa começar com https://" };
+  }
   const { data, error } = plan.isNew
     ? await supabase.from("plans").insert(row).select("id").single()
     : await supabase.from("plans").update(row).eq("id", plan.id).select("id").single();
+  if (!error) updateTag(PLANS_TAG);
   return error ? { ok: false, error: error.message } : { ok: true, id: data.id };
 }
 
@@ -110,5 +118,6 @@ export async function alternarPlano(id: string, active: boolean): Promise<Result
   if (!isSupabaseConfigured) return demo();
   const supabase = await session();
   const { error } = await supabase.from("plans").update({ active }).eq("id", id);
+  if (!error) updateTag(PLANS_TAG);
   return error ? { ok: false, error: error.message } : { ok: true };
 }

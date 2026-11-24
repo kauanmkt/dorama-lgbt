@@ -50,6 +50,8 @@ await db.exec(readFileSync(`${root}/supabase/migrations/0014_assistir_na_tv.sql`
 await db.exec(readFileSync(`${root}/supabase/migrations/0015_ping_menos_frequente.sql`, "utf8"));
 await db.exec(readFileSync(`${root}/supabase/migrations/0016_solicitar_serie.sql`, "utf8"));
 await db.exec(readFileSync(`${root}/supabase/migrations/0016_solicitar_serie.sql`, "utf8")); // pode rodar 2x
+await db.exec(readFileSync(`${root}/supabase/migrations/0017_planos_no_site.sql`, "utf8"));
+await db.exec(readFileSync(`${root}/supabase/migrations/0017_planos_no_site.sql`, "utf8"));
 ok(true, "migração aplicada sem erros");
 
 console.log("\n▶ Aplicando dados de demonstração (2x, para testar repetição)");
@@ -323,6 +325,18 @@ await asOwner();
 ok((await q("select value from settings where key='tv_product_ids'"))[0].value[0] === "68571", "produto 68571 já cadastrado");
 await q("update subscriptions set status=$2, lifetime=$3, expires_at=$4, tv_access=false where user_id=$1", [ana, subAntes.status, subAntes.lifetime, subAntes.expires_at]);
 
+
+
+console.log("\n▶ Planos no site");
+await asOwner();
+ok((await q("select count(*)::int n from plans where name in ('Trimestral','Anual')"))[0].n === 2, "Trimestral e Anual criados uma vez só");
+await expectError("update plans set checkout_url='javascript:alert(1)' where name='Anual'", "link do checkout precisa ser https");
+await q("update plans set checkout_url='https://checkout.lowify.com.br/x', active=true where name='Anual'");
+await as("anon", null);
+const vis = await q("select name from plans where active and show_on_site and checkout_url <> '' order by position");
+ok(vis.some((p) => p.name === "Anual"), "visitante vê o plano Anual com link");
+ok(!vis.some((p) => p.name === "Trimestral"), "plano sem link/desligado não aparece");
+await asOwner();
 
 console.log("\n▶ Solicitar série");
 await as("authenticated", ana);
