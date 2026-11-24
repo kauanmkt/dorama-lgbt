@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { connection } from "next/server";
@@ -9,7 +10,7 @@ import { supabaseKey, supabaseUrl } from "./config";
  * Lê a sessão dos cookies; o RLS do banco decide o que essa pessoa pode ver.
  * Usar dentro de <Suspense>, pois depende de dados da requisição (cookies).
  */
-export async function createSessionClient() {
+export const createSessionClient = cache(async () => {
   // Marca este trecho como "só na hora do acesso" (nunca pré-montado nem compartilhado)
   await connection();
   const cookieStore = await cookies();
@@ -26,4 +27,4 @@ export async function createSessionClient() {
       },
     },
   });
-}
+});

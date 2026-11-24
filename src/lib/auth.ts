@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 
@@ -11,7 +12,8 @@ import { isSupabaseConfigured } from "@/lib/supabase/config";
 
 export type SessionUser = { id: string; email: string };
 
-export async function getSessionUser(): Promise<SessionUser | null> {
+/** Uma única conferência por acesso (as telas e o painel chamam várias vezes). */
+export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   if (!isSupabaseConfigured) return { id: "demo", email: "visitante@exemplo.com" };
   const { createSessionClient } = await import("@/lib/supabase/server");
   const supabase = await createSessionClient();
@@ -20,7 +22,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   const claims = data?.claims;
   if (!claims?.sub) return null;
   return { id: claims.sub, email: String(claims.email ?? "") };
-}
+});
 
 export async function requireUser(next = "/"): Promise<SessionUser> {
   const user = await getSessionUser();
@@ -28,13 +30,13 @@ export async function requireUser(next = "/"): Promise<SessionUser> {
   return user;
 }
 
-export async function isAdmin(): Promise<boolean> {
+export const isAdmin = cache(async (): Promise<boolean> => {
   if (!isSupabaseConfigured) return true;
   const { createSessionClient } = await import("@/lib/supabase/server");
   const supabase = await createSessionClient();
   const { data, error } = await supabase.rpc("is_admin");
   return !error && data === true;
-}
+});
 
 /** Garante que é o administrador; caso contrário, manda para o login do painel. */
 export async function requireAdmin(): Promise<SessionUser> {

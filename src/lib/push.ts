@@ -14,7 +14,7 @@ import "server-only";
 import webpush from "web-push";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-export type NotificationKind = "lancamento" | "continuar" | "saudade" | "aviso" | "suporte" | "teste";
+export type NotificationKind = "lancamento" | "continuar" | "saudade" | "aviso" | "suporte" | "teste" | "pedido";
 
 export type NotificationInput = {
   kind: NotificationKind;

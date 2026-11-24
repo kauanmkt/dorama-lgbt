@@ -48,6 +48,8 @@ await db.exec(readFileSync(`${root}/supabase/migrations/0012_notificacoes.sql`, 
 await db.exec(readFileSync(`${root}/supabase/migrations/0013_classificacao_18.sql`, "utf8"));
 await db.exec(readFileSync(`${root}/supabase/migrations/0014_assistir_na_tv.sql`, "utf8"));
 await db.exec(readFileSync(`${root}/supabase/migrations/0015_ping_menos_frequente.sql`, "utf8"));
+await db.exec(readFileSync(`${root}/supabase/migrations/0016_solicitar_serie.sql`, "utf8"));
+await db.exec(readFileSync(`${root}/supabase/migrations/0016_solicitar_serie.sql`, "utf8")); // pode rodar 2x
 ok(true, "migração aplicada sem erros");
 
 console.log("\n▶ Aplicando dados de demonstração (2x, para testar repetição)");
@@ -320,6 +322,42 @@ await expectError("select public.my_tv_access()", "visitante não consulta");
 await asOwner();
 ok((await q("select value from settings where key='tv_product_ids'"))[0].value[0] === "68571", "produto 68571 já cadastrado");
 await q("update subscriptions set status=$2, lifetime=$3, expires_at=$4, tv_access=false where user_id=$1", [ana, subAntes.status, subAntes.lifetime, subAntes.expires_at]);
+
+
+console.log("\n▶ Solicitar série");
+await as("authenticated", ana);
+ok((await q("select public.my_request_credits() n"))[0].n === 0, "sem compra: Ana tem 0 créditos");
+await expectError("select public.submit_series_request('Minha série', '')", "sem crédito não pede");
+await expectError(`insert into series_request_credits (user_id) values ('${ana}')`, "cliente não cria crédito sozinho");
+await expectError(`insert into series_requests (user_id, title) values ('${ana}', 'Burlando')`, "cliente não insere pedido direto");
+await asOwner();
+await q("insert into series_request_credits (user_id, order_key) values ($1, 'P1:48125')", [ana]);
+await expectError("insert into series_request_credits (user_id, order_key) values ('" + ana + "', 'P1:48125')", "mesmo pedido não dá crédito em dobro");
+await as("authenticated", ana);
+ok((await q("select public.my_request_credits() n"))[0].n === 1, "comprou: 1 crédito");
+await expectError("select public.submit_series_request(' x ', '')", "nome curto demais");
+const pid = (await q("select public.submit_series_request('  Love in the Air  ', 'temporada 2') id"))[0].id;
+ok(Boolean(pid), "Ana enviou o pedido");
+ok((await q("select public.my_request_credits() n"))[0].n === 0, "crédito gasto (1 uso por compra)");
+await expectError("select public.submit_series_request('Outra série', '')", "segundo pedido exige nova compra");
+const meus = await q("select title, status, email from series_requests");
+ok(meus.length === 1 && meus[0].title === "Love in the Air" && meus[0].status === "pendente", "Ana vê o próprio pedido (sem espaços extras)");
+ok((await q(`update series_requests set status='adicionada' where id='${pid}' returning id`)).length === 0, "cliente não muda o status");
+await asOwner();
+ok((await q("select status from series_requests where id=$1", [pid]))[0].status === "pendente", "status continua pendente");
+await as("authenticated", beto);
+ok((await q("select count(*)::int n from series_requests"))[0].n === 0, "Beto não vê o pedido da Ana");
+await as("authenticated", adm);
+ok((await q("select public.my_request_credits() n"))[0].n === -1, "admin: ilimitado");
+ok((await q("select count(*)::int n from series_requests"))[0].n === 1, "admin vê todos os pedidos");
+await q("update series_requests set status='adicionada', admin_note='Já está no catálogo' where id=$1", [pid]);
+ok((await q("select status from series_requests where id=$1", [pid]))[0].status === "adicionada", "admin marca como adicionada");
+await q("select public.submit_series_request('Teste admin', '')");
+await asOwner();
+ok((await q("select value from settings where key='request_product_ids'"))[0].value[0] === "48125", "produto 48125 cadastrado");
+ok((await q("select value from settings where key='request_checkout_url'"))[0].value.includes("5c3f45b7"), "link do checkout cadastrado");
+await q("insert into notifications (user_id, kind, title, body, url, ref) values ($1, 'pedido', 't', 'b', '/', 'x')", [ana]).then(()=>ok(true,"notificação do tipo pedido aceita")).catch(e=>ok(false,"notificação pedido: "+e.message));
+await db.exec("delete from series_requests; delete from series_request_credits; delete from notifications where kind='pedido'");
 
 console.log("\n▶ Chat de suporte");
 await as("authenticated", ana);

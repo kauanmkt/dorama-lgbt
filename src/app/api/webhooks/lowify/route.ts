@@ -98,6 +98,34 @@ export async function POST(req: NextRequest) {
     return json({ ok: true, action: action === "pago" ? "tv_liberada" : "tv_removida" });
   }
 
+  // ---- "Solicitar série" (order bump): cada compra = 1 crédito para pedir uma série ----
+  const { data: reqSetting } = await admin.from("settings").select("value").eq("key", "request_product_ids").maybeSingle();
+  const reqIds = Array.isArray(reqSetting?.value) ? (reqSetting.value as unknown[]).map(String) : [];
+  if (reqIds.length && matchesAnyId(payload, reqIds) && (action === "pago" || action === "reembolso")) {
+    if (action === "pago" && existing?.status === "aprovado") return json({ ok: true, action: "ja_processado" });
+    if (action === "reembolso" && existing?.status === "reembolsado") return json({ ok: true, action: "ja_processado" });
+    const { data: profile } = await admin.from("profiles").select("id").eq("email", email).maybeSingle();
+    if (!profile) {
+      // A conta ainda não foi criada (aviso do plano não chegou): a Lowify tenta de novo
+      return json({ error: "Conta ainda não criada; tente novamente" }, 409);
+    }
+    if (action === "pago") {
+      const { error } = await admin
+        .from("series_request_credits")
+        .upsert({ user_id: profile.id, order_key: orderId, source: "compra" }, { onConflict: "order_key", ignoreDuplicates: true });
+      if (error) return json({ error: error.message }, 500);
+    } else {
+      // Reembolso: tira o crédito desse pedido se ainda não foi usado
+      await admin
+        .from("series_request_credits")
+        .update({ revoked_at: new Date().toISOString() })
+        .eq("order_key", orderId)
+        .is("used_at", null);
+    }
+    await record(action === "pago" ? "aprovado" : "reembolsado", null, profile.id);
+    return json({ ok: true, action: action === "pago" ? "credito_pedido_adicionado" : "credito_pedido_removido" });
+  }
+
   // ---- Tela extra (order bump) ----
   const { data: extraSetting } = await admin.from("settings").select("value").eq("key", "extra_screen_product_ids").maybeSingle();
   const extraIds = Array.isArray(extraSetting?.value) ? (extraSetting.value as unknown[]).map(String) : [];

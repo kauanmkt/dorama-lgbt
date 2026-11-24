@@ -5,7 +5,7 @@ import { Artwork } from "./Artwork";
 /** Card do "Top 10" com o número grande ao lado da capa. */
 export function TopCard({ dorama, rank }: { dorama: Dorama; rank: number }) {
   return (
-    <Link href={`/dorama/${dorama.slug}`} className="group flex items-end" title={dorama.title}>
+    <Link href={`/dorama/${dorama.slug}`} className="group flex items-end pb-3" title={dorama.title}>
       <span
         aria-hidden
         className="font-display relative z-0 -mr-[0.12em] shrink-0 text-[clamp(6.5rem,24vw,10rem)] leading-[0.72] font-extrabold tracking-[-0.1em] text-transparent select-none"

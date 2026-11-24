@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { Bell, ChevronRight, HelpCircle, Tv, LogOut, MessageCircle, MonitorSmartphone, ShieldCheck, Smartphone } from "lucide-react";
+import { Bell, ChevronRight, HelpCircle, Tv, LogOut, MessageCircle, MonitorSmartphone, Plus, ShieldCheck, Smartphone } from "lucide-react";
 import { Container } from "@/components/layout/PageIntro";
 import { Badge } from "@/components/ui/Badge";
 import { getMyAccess, getMyProfile } from "@/lib/auth";
@@ -14,6 +14,7 @@ export const metadata: Metadata = { title: "Perfil" };
 const menu = [
   { label: "Dados da conta", icon: ShieldCheck, href: "/perfil/conta" },
   { label: "Notificações", icon: Bell, href: "/perfil/notificacoes" },
+  { label: "Solicitar série", icon: Plus, href: "/solicitar" },
   { label: "Assistir na TV", icon: Tv, href: "/perfil/tv" },
   { label: "Telas conectadas", icon: MonitorSmartphone, href: "/perfil/telas" },
   { label: "Instalar o app no celular", icon: Smartphone, href: "/perfil/instalar" },

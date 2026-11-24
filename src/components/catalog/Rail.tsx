@@ -62,7 +62,7 @@ export function Rail({
         <div
           ref={ref}
           onScroll={update}
-          className="no-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-px-4 px-4 pt-1 pb-4 sm:scroll-px-6 sm:px-6 lg:scroll-px-10 lg:px-10"
+          className="no-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto overflow-y-hidden overscroll-x-contain scroll-px-4 px-4 pt-1 pb-4 sm:scroll-px-6 sm:px-6 lg:scroll-px-10 lg:px-10"
         >
           {children.map((child, i) => (
             <div key={i} className={cn("shrink-0 snap-start", itemClassName)}>

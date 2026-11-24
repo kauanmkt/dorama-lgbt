@@ -51,13 +51,14 @@ export type DoramaRow = {
   art_seed: number;
   poster_url: string | null;
   banner_url: string | null;
+  published_at?: string | null;
   dorama_categories: { categories: { slug: string } | null }[];
   seasons: { number: number; title: string | null; episodes: EpisodeRow[] }[];
 };
 
 export const DORAMA_SELECT = `
   id, slug, title, original_title, tagline, synopsis, year, country, age_rating, status,
-  is_featured, featured_position, is_new, popularity, art_seed, poster_url, banner_url,
+  is_featured, featured_position, is_new, popularity, art_seed, poster_url, banner_url, published_at,
   dorama_categories ( categories ( slug ) ),
   seasons ( number, title, episodes ( id, number, title, synopsis, duration_min, thumbnail_url, video_ready ) )
 `;
@@ -82,6 +83,7 @@ export function mapDorama(row: DoramaRow): Dorama {
     artSeed: row.art_seed,
     posterUrl: row.poster_url ?? undefined,
     bannerUrl: row.banner_url ?? undefined,
+    publishedAt: row.published_at ?? undefined,
     seasons: [...row.seasons]
       .sort((a, b) => a.number - b.number)
       .map((s) => ({
@@ -106,6 +108,9 @@ export function mapDorama(row: DoramaRow): Dorama {
   };
 }
 
+/** Por quanto tempo um dorama recém-lançado ganha o selo "Novo". */
+const NEW_FOR_MS = 7 * 86_400_000;
+
 async function fetchFromSupabase(): Promise<CatalogData> {
   const { createPublicClient } = await import("@/lib/supabase/public");
   const supabase = createPublicClient();
@@ -115,8 +120,14 @@ async function fetchFromSupabase(): Promise<CatalogData> {
   ]);
   if (doramas.error) throw new Error(`Erro ao ler doramas: ${doramas.error.message}`);
   if (categories.error) throw new Error(`Erro ao ler categorias: ${categories.error.message}`);
+  // Selo "Novo": só para doramas lançados nos últimos 7 dias
+  const cutoff = Date.now() - NEW_FOR_MS;
   return {
-    doramas: (doramas.data as unknown as DoramaRow[]).map(mapDorama),
+    doramas: (doramas.data as unknown as DoramaRow[]).map((row) => {
+      const d = mapDorama(row);
+      const published = d.publishedAt ? Date.parse(d.publishedAt) : NaN;
+      return { ...d, isNew: Number.isFinite(published) && published >= cutoff };
+    }),
     categories: categories.data.map((c) => ({
       slug: c.slug,
       name: c.name,
@@ -152,10 +163,14 @@ export async function getFeaturedDoramas(): Promise<Dorama[]> {
     .sort((a, b) => (a.featuredPosition ?? 0) - (b.featuredPosition ?? 0) || byPopularity(a, b));
 }
 
+/** Lançamentos: os mais recentes primeiro (os da última semana têm o selo "Novo"). */
 export async function getNewReleases(): Promise<Dorama[]> {
-  return (await getCatalog()).doramas
-    .filter((d) => d.isNew)
-    .sort((a, b) => b.year - a.year || byPopularity(a, b));
+  const byDate = [...(await getCatalog()).doramas].sort(
+    (a, b) => (b.publishedAt ?? "").localeCompare(a.publishedAt ?? "") || byPopularity(a, b),
+  );
+  const recent = byDate.filter((d) => d.isNew);
+  // Semana sem novidades: mostra os últimos lançados mesmo assim, para a fileira não sumir
+  return recent.length >= 6 ? recent : byDate.slice(0, 15);
 }
 
 export async function getTopDoramas(limit = 10): Promise<Dorama[]> {

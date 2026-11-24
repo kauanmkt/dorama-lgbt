@@ -44,6 +44,8 @@ export type Dorama = {
   categories: string[];
   status: DoramaStatus;
   isNew?: boolean;
+  /** Quando foi publicado no catálogo (ISO). */
+  publishedAt?: string;
   isFeatured?: boolean;
   /** Ordem no banner principal (1 = primeiro) */
   featuredPosition?: number;

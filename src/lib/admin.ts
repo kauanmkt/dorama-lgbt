@@ -4,6 +4,7 @@
  * servidor se quem pede é administrador. Sem configuração, usa os dados
  * fictícios (para desenvolver o visual).
  */
+import { cache } from "react";
 import { mockCategories, mockDoramas } from "@/lib/mock/catalog";
 import { NOW } from "@/lib/format";
 import { mockPlans, mockUsers, mockVideos } from "@/lib/mock/admin";
@@ -60,7 +61,7 @@ async function adminClient() {
 type AdminDoramaRow = DoramaRow & { visibility: AdminDorama["visibility"]; updated_at: string };
 
 /** Todos os doramas (publicados e rascunhos), do mais recente para o mais antigo. */
-export async function getAdminDoramas(): Promise<AdminDorama[]> {
+export const getAdminDoramas = cache(async (): Promise<AdminDorama[]> => {
   if (!isSupabaseConfigured) {
     const published = mockDoramas.map(
       (d, i): AdminDorama => ({
@@ -82,9 +83,9 @@ export async function getAdminDoramas(): Promise<AdminDorama[]> {
     visibility: row.visibility,
     updatedAt: row.updated_at,
   }));
-}
+});
 
-export async function getAdminDorama(slug: string): Promise<AdminDorama | undefined> {
+export const getAdminDorama = cache(async (slug: string): Promise<AdminDorama | undefined> => {
   if (!isSupabaseConfigured) return (await getAdminDoramas()).find((d) => d.slug === slug);
   const supabase = await adminClient();
   const { data, error } = await supabase
@@ -96,12 +97,12 @@ export async function getAdminDorama(slug: string): Promise<AdminDorama | undefi
   if (!data) return undefined;
   const row = data as unknown as AdminDoramaRow;
   return { ...mapDorama(row), visibility: row.visibility, updatedAt: row.updated_at };
-}
+});
 
 export type AdminCategory = Category & { count: number };
 
 /** Categorias na ordem das fileiras, com quantos doramas usam cada uma. */
-export async function getAdminCategories(): Promise<AdminCategory[]> {
+export const getAdminCategories = cache(async (): Promise<AdminCategory[]> => {
   if (!isSupabaseConfigured) {
     const all = await getAdminDoramas();
     return mockCategories.map((c) => ({
@@ -122,16 +123,16 @@ export async function getAdminCategories(): Promise<AdminCategory[]> {
     description: c.description ?? undefined,
     count: (c.dorama_categories as unknown as { count: number }[])[0]?.count ?? 0,
   }));
-}
+});
 
 /** Todas as configurações (inclusive as não públicas), como objeto chave → valor. */
-export async function getAdminSettings(): Promise<Record<string, unknown>> {
+export const getAdminSettings = cache(async (): Promise<Record<string, unknown>> => {
   if (!isSupabaseConfigured) return {};
   const supabase = await adminClient();
   const { data, error } = await supabase.from("settings").select("key, value");
   if (error) throw new Error(`Erro ao ler configurações: ${error.message}`);
   return Object.fromEntries(data.map((r) => [r.key, r.value]));
-}
+});
 
 // ===== Planos e usuários: já leem do banco quando o Supabase está configurado =====
 
@@ -148,7 +149,7 @@ type PlanRow = {
   highlight: boolean;
 };
 
-export async function getPlans(): Promise<Plan[]> {
+export const getPlans = cache(async (): Promise<Plan[]> => {
   if (!isSupabaseConfigured) return mockPlans;
   await requireAdmin();
   const supabase = await createSessionClient();
@@ -170,12 +171,12 @@ export async function getPlans(): Promise<Plan[]> {
     highlight: p.highlight,
     productIds: p.external_product_ids ?? [],
   }));
-}
+});
 
 /** Uma tela conta como "em uso" se deu sinal de vida nos últimos 2 minutos. */
 const SCREEN_TIMEOUT_MS = 4 * 60 * 1000; // o player avisa a cada 90 s
 
-export async function getUsers(): Promise<AdminUser[]> {
+export const getUsers = cache(async (): Promise<AdminUser[]> => {
   if (!isSupabaseConfigured) return mockUsers;
   await requireAdmin();
   const supabase = await createSessionClient();
@@ -212,7 +213,7 @@ export async function getUsers(): Promise<AdminUser[]> {
       isAdmin: adminIds.has(p.id),
     };
   });
-}
+});
 
 type VideoRow = {
   id: string;
@@ -227,7 +228,7 @@ type VideoRow = {
   created_at: string;
 };
 
-export async function getVideos(): Promise<VideoAsset[]> {
+export const getVideos = cache(async (): Promise<VideoAsset[]> => {
   if (!isSupabaseConfigured) return mockVideos;
   const supabase = await adminClient();
   const { data, error } = await supabase
@@ -245,7 +246,7 @@ export async function getVideos(): Promise<VideoAsset[]> {
     status: v.status,
     uploadedAt: v.uploaded_at ?? v.created_at,
   }));
-}
+});
 
 export async function getDashboardStats(now: number) {
   const [doramas, users, videos] = await Promise.all([getAdminDoramas(), getUsers(), getVideos()]);

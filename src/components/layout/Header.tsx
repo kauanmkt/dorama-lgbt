@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Search, User } from "lucide-react";
+import { Plus, Search, User } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { clientTopNav } from "@/config/navigation";
@@ -65,6 +65,17 @@ export function Header() {
             className="hidden h-10 w-10 items-center justify-center rounded-full text-fg-muted transition-colors hover:bg-white/10 hover:text-fg md:flex"
           >
             <Search className="size-5" />
+          </Link>
+          <Link
+            href="/solicitar"
+            aria-label="Solicitar série"
+            title="Solicitar série"
+            className={cn(
+              "flex h-10 w-10 items-center justify-center rounded-full transition-colors hover:bg-white/10 hover:text-fg",
+              pathname.startsWith("/solicitar") ? "text-brand-300" : "text-fg-muted",
+            )}
+          >
+            <Plus className="size-6" strokeWidth={2.4} />
           </Link>
           <NotificationBell />
           <Link
