@@ -1,10 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect } from "react";
 import { Check, Crown, X } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 import type { SitePlan } from "@/lib/site-plans";
+import { CheckoutLink } from "./CheckoutLink";
+import { visitorStore } from "./visitor-store";
 
 const brl = (cents: number) =>
   (cents / 100).toLocaleString("pt-BR", {
@@ -104,7 +105,7 @@ export function PlansSheet({
         ) : (
           <div className="mt-6 space-y-3">
             {plans.map((p) => (
-              <a
+              <CheckoutLink
                 key={p.id}
                 href={p.checkoutUrl}
                 className={`relative block rounded-2xl border p-4 transition hover:-translate-y-0.5 ${
@@ -146,20 +147,20 @@ export function PlansSheet({
                 >
                   Assinar {p.name}
                 </span>
-              </a>
+              </CheckoutLink>
             ))}
           </div>
         )}
 
         <p className="mt-5 text-center text-sm text-fg-muted">
           Já é assinante?{" "}
-          <Link
-            href="/entrar"
-            onClick={onClose}
+          <button
+            type="button"
+            onClick={visitorStore.openLogin}
             className="font-bold text-brand-300 hover:underline"
           >
             Entrar
-          </Link>
+          </button>
         </p>
       </div>
     </div>

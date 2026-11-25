@@ -5,7 +5,7 @@ import { AlertCircle, ArrowRight, Loader2, MonitorSmartphone } from "lucide-reac
 import { Button } from "@/components/ui/Button";
 import { entrarComEmail, type LoginState } from "./actions";
 
-export function LoginForm({ purchaseUrl }: { purchaseUrl?: string }) {
+export function LoginForm({ purchaseUrl, onSubscribe }: { purchaseUrl?: string; onSubscribe?: () => void }) {
   const [state, dispatch, pending] = useActionState<LoginState, FormData>(entrarComEmail, {});
   const [kicked, setKicked] = useState(false);
 
@@ -56,9 +56,15 @@ export function LoginForm({ purchaseUrl }: { purchaseUrl?: string }) {
                 <>
                   {" "}
                   Ainda não é assinante?{" "}
-                  <a href={purchaseUrl} className="font-bold text-brand-300 underline-offset-2 hover:underline">
-                    Assine agora
-                  </a>
+                  {onSubscribe ? (
+                    <button type="button" onClick={onSubscribe} className="font-bold text-brand-300 underline-offset-2 hover:underline">
+                      Assine agora
+                    </button>
+                  ) : (
+                    <a href={purchaseUrl} className="font-bold text-brand-300 underline-offset-2 hover:underline">
+                      Assine agora
+                    </a>
+                  )}
                 </>
               )}
             </p>
@@ -74,9 +80,15 @@ export function LoginForm({ purchaseUrl }: { purchaseUrl?: string }) {
       {purchaseUrl && (
         <p className="pt-2 text-center text-sm text-fg-muted">
           Ainda não tem acesso?{" "}
-          <a href={purchaseUrl} className="font-bold text-brand-300 hover:underline">
-            Assinar agora
-          </a>
+          {onSubscribe ? (
+            <button type="button" onClick={onSubscribe} className="font-bold text-brand-300 hover:underline">
+              Assinar agora
+            </button>
+          ) : (
+            <a href={purchaseUrl} className="font-bold text-brand-300 hover:underline">
+              Assinar agora
+            </a>
+          )}
         </p>
       )}
     </form>

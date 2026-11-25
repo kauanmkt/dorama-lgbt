@@ -9,8 +9,18 @@ import { useSyncExternalStore } from "react";
  * protegidas no servidor; isto só muda o que aparece na tela.
  */
 /** resolved: o servidor já disse se é visitante ou assinante. */
-type State = { visitor: boolean; resolved: boolean; plansOpen: boolean };
-let state: State = { visitor: false, resolved: false, plansOpen: false };
+type State = {
+  visitor: boolean;
+  resolved: boolean;
+  plansOpen: boolean;
+  loginOpen: boolean;
+};
+let state: State = {
+  visitor: false,
+  resolved: false,
+  plansOpen: false,
+  loginOpen: false,
+};
 const listeners = new Set<() => void>();
 
 function set(next: Partial<State>) {
@@ -20,8 +30,10 @@ function set(next: Partial<State>) {
 
 export const visitorStore = {
   setVisitor: (visitor: boolean) => set({ visitor, resolved: true }),
-  openPlans: () => set({ plansOpen: true }),
+  openPlans: () => set({ plansOpen: true, loginOpen: false }),
   closePlans: () => set({ plansOpen: false }),
+  openLogin: () => set({ loginOpen: true, plansOpen: false }),
+  closeLogin: () => set({ loginOpen: false }),
 };
 
 const subscribe = (l: () => void) => {
