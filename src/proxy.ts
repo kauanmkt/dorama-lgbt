@@ -11,7 +11,7 @@ import { isSupabaseConfigured, supabaseKey, supabaseUrl } from "@/lib/supabase/c
  * são conferidas de novo no servidor e no banco (RLS).
  */
 /** Catálogo aberto: qualquer pessoa vê (tocar num dorama abre a janela de planos). */
-const OPEN_CATALOG = ["/", "/buscar", "/doramas", "/categorias", "/categoria"];
+const OPEN_CATALOG = ["/cadastro"];
 const PUBLIC_PATHS = [...OPEN_CATALOG, "/entrar", "/admin/entrar", "/api/webhooks", "/api/importar", "/api/hls", "/api/sessao", "/api/notificacoes"];
 
 /** De quanto em quanto tempo conferir se este login ainda vale (outro aparelho pode ter derrubado). */
@@ -37,7 +37,7 @@ export async function proxy(request: NextRequest) {
   const loggedIn = Boolean(data?.claims?.sub);
   const path = request.nextUrl.pathname;
   const isPublic = PUBLIC_PATHS.some((p) => path === p || path.startsWith(`${p}/`));
-  const isOpenCatalog = OPEN_CATALOG.some((p) => path === p || (p !== "/" && path.startsWith(`${p}/`)));
+  const isOpenCatalog = OPEN_CATALOG.some((p) => path === p || path.startsWith(`${p}/`));
 
   const redirectTo = (target: string) => {
     const r = NextResponse.redirect(new URL(target, request.url));

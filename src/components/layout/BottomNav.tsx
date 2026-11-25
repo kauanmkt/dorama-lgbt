@@ -14,14 +14,14 @@ import { cn } from "@/lib/utils";
 export function BottomNav() {
   const pathname = usePathname();
   const { visitor } = useVisitor();
-  const items = visitor ? clientBottomNav.slice(0, 2) : clientBottomNav;
+  const items = visitor ? [{ ...clientBottomNav[0], href: "/cadastro" }] : clientBottomNav;
 
   return (
     <nav
       aria-label="Navegação"
       className="pb-safe fixed inset-x-0 bottom-0 z-40 border-t border-white/5 bg-ink-950/90 backdrop-blur-xl md:hidden"
     >
-      <ul className="grid h-16 grid-cols-4">
+      <ul className={cn("grid h-16", visitor ? "grid-cols-3" : "grid-cols-4")}>
         {items.map(({ href, label, icon: Icon, ready }) => {
           const active =
             href === "/" ? pathname === "/" : pathname.startsWith(href);
